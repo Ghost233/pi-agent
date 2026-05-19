@@ -10,7 +10,7 @@ Pi SDK agent 的个人配置还原仓库。
 curl -fsSL https://raw.githubusercontent.com/Ghost233/pi-agent/main/scripts/install.sh | bash
 ```
 
-如果当前电脑还没有 `pi` 命令，脚本会先通过 npm 安装官方 Pi CLI：
+脚本不会假设当前电脑已经安装 `pi`。完整安装时会先通过 npm 安装或更新官方 Pi CLI：
 
 ```bash
 npm install -g @earendil-works/pi-coding-agent
@@ -57,6 +57,7 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 
 脚本可以反复运行：
 
+- 官方 Pi CLI 会先通过 `npm install -g` 安装或更新
 - profile 内容没变时不会覆盖，也不会产生备份
 - `pi-ghost` 启动脚本内容没变时不会重写
 - 已安装的 Extension 不会重复 `pi install`

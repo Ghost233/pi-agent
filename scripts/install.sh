@@ -179,13 +179,11 @@ extension_sources() {
 }
 
 ensure_pi_cli() {
-  if ! command -v pi >/dev/null 2>&1; then
-    if [ "$INSTALL_PI_CLI" = "true" ]; then
-      install_pi_cli
-    else
-      echo "Pi CLI not found. Install Pi first, or rerun with --config-only to skip extensions." >&2
-      exit 1
-    fi
+  if [ "$INSTALL_PI_CLI" = "true" ]; then
+    install_pi_cli
+  elif ! command -v pi >/dev/null 2>&1; then
+    echo "Pi CLI not found. Install Pi first, or rerun with --config-only to skip extensions." >&2
+    exit 1
   fi
 
   if ! PI_CODING_AGENT_DIR="$AGENT_DIR" pi --help >/dev/null 2>&1; then
@@ -200,7 +198,7 @@ install_pi_cli() {
     exit 1
   fi
 
-  echo "pi-cli: installing $PI_CLI_PACKAGE"
+  echo "pi-cli: installing/updating $PI_CLI_PACKAGE"
   npm install -g "$PI_CLI_PACKAGE"
   hash -r 2>/dev/null || true
 
@@ -414,6 +412,10 @@ echo "  agent:  $AGENT_DIR"
 echo "  dest:   $DEST"
 if [ "$CREATE_LAUNCHER" = "true" ]; then
   echo "  launch: $LAUNCHER"
+fi
+
+if [ -n "$EXTENSION_SOURCES" ] && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" = "1" ] && [ "$INSTALL_PI_CLI" = "true" ]; then
+  echo "dry-run: would install/update Pi CLI $PI_CLI_PACKAGE"
 fi
 
 if [ -n "$EXTENSION_SOURCES" ] && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" != "1" ]; then
