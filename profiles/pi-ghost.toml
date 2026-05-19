@@ -1,0 +1,54 @@
+version = 1
+profile = "pi-ghost"
+
+[local]
+agent_dir = "~/.pi/agent-pi-ghost"
+target_config = "~/.pi/agent-pi-ghost/profile.toml"
+launcher = "~/.local/bin/pi-ghost"
+
+[install]
+backup_existing = true
+install_extensions = true
+update_extensions = true
+create_launcher = true
+
+[[extensions]]
+name = "pi-subagents"
+source = "npm:pi-subagents"
+enabled = true
+
+[[extensions]]
+name = "pi-rtk-optimizer"
+source = "npm:pi-rtk-optimizer"
+enabled = true
+requires_binary = "rtk"
+
+[[extensions]]
+name = "rpiv-todo"
+source = "npm:@juicesharp/rpiv-todo"
+enabled = true
+
+[[extensions]]
+name = "pi-codex-goal"
+source = "npm:pi-codex-goal"
+enabled = true
+
+[[extensions]]
+name = "rpiv-ask-user-question"
+source = "npm:@juicesharp/rpiv-ask-user-question"
+enabled = true
+
+[[extensions]]
+name = "rpiv-btw"
+source = "npm:@juicesharp/rpiv-btw"
+enabled = true
+
+[[extensions]]
+name = "pi-extension-safety-guard"
+source = "npm:@firstpick/pi-extension-safety-guard"
+enabled = true
+
+[[extensions]]
+name = "pi-code-previews"
+source = "npm:pi-code-previews"
+enabled = true
