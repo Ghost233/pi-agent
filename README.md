@@ -46,6 +46,7 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - `npm:@juicesharp/rpiv-btw`
 - `npm:@firstpick/pi-extension-safety-guard`
 - `npm:pi-code-previews`
+- `npm:pi-context-usage`
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 

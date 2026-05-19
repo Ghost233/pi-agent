@@ -53,3 +53,8 @@ enabled = true
 name = "pi-code-previews"
 source = "npm:pi-code-previews"
 enabled = true
+
+[[extensions]]
+name = "pi-context-usage"
+source = "npm:pi-context-usage"
+enabled = true
