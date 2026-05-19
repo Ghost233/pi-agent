@@ -1,0 +1,48 @@
+#!/bin/sh
+set -eu
+
+required_name="Ghost233"
+required_email="only.yesc@gmail.com"
+
+print_fix() {
+  printf '%s\n' "Set the repo identity with:" >&2
+  printf '%s\n' "  git config user.name \"${required_name}\"" >&2
+  printf '%s\n' "  git config user.email \"${required_email}\"" >&2
+}
+
+extract_name() {
+  printf '%s\n' "$1" | sed -E 's/[[:space:]]+<[^>]+>[[:space:]]+[0-9]+[[:space:]][+-][0-9]{4}$//'
+}
+
+extract_email() {
+  printf '%s\n' "$1" | sed -nE 's/^.*<([^>]+)>[[:space:]]+[0-9]+[[:space:]][+-][0-9]{4}$/\1/p'
+}
+
+check_ident() {
+  label="$1"
+  ident="$2"
+  actual_name="$(extract_name "$ident")"
+  actual_email="$(extract_email "$ident")"
+
+  if [ "$actual_name" != "$required_name" ] || [ "$actual_email" != "$required_email" ]; then
+    printf '%s\n' "Commit blocked: ${label} must be ${required_name} <${required_email}>." >&2
+    printf '%s\n' "Current ${label}: ${actual_name} <${actual_email}>" >&2
+    print_fix
+    exit 1
+  fi
+}
+
+author_ident="$(git var GIT_AUTHOR_IDENT 2>/dev/null)" || {
+  printf '%s\n' "Commit blocked: unable to resolve Git author identity." >&2
+  print_fix
+  exit 1
+}
+
+committer_ident="$(git var GIT_COMMITTER_IDENT 2>/dev/null)" || {
+  printf '%s\n' "Commit blocked: unable to resolve Git committer identity." >&2
+  print_fix
+  exit 1
+}
+
+check_ident "author" "$author_ident"
+check_ident "committer" "$committer_ident"
