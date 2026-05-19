@@ -178,6 +178,41 @@ extension_sources() {
   ' "$TMP_FILE"
 }
 
+extension_removal_sources() {
+  awk -F= '
+    function trim(value) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      return value
+    }
+    function flush() {
+      if (in_extension && source != "") {
+        print source
+      }
+    }
+    /^\[\[remove_extensions\]\]/ {
+      flush()
+      in_extension = 1
+      source = ""
+      next
+    }
+    /^\[/ {
+      flush()
+      in_extension = 0
+      next
+    }
+    in_extension && $1 ~ /^[[:space:]]*source[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      source = trim(value)
+      next
+    }
+    END {
+      flush()
+    }
+  ' "$TMP_FILE"
+}
+
 ensure_pi_cli() {
   if [ "$INSTALL_PI_CLI" = "true" ]; then
     install_pi_cli
@@ -393,6 +428,7 @@ INSTALL_EXTENSIONS="$(profile_bool install install_extensions true)"
 UPDATE_EXTENSIONS="$(profile_bool install update_extensions true)"
 CREATE_LAUNCHER="$(profile_bool install create_launcher true)"
 EXTENSION_SOURCES="$(extension_sources)"
+EXTENSION_REMOVAL_SOURCES="$(extension_removal_sources)"
 
 if [ "$LAUNCHER_DISABLED" = "1" ]; then
   CREATE_LAUNCHER="false"
@@ -414,11 +450,11 @@ if [ "$CREATE_LAUNCHER" = "true" ]; then
   echo "  launch: $LAUNCHER"
 fi
 
-if [ -n "$EXTENSION_SOURCES" ] && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" = "1" ] && [ "$INSTALL_PI_CLI" = "true" ]; then
+if { [ -n "$EXTENSION_SOURCES" ] || [ -n "$EXTENSION_REMOVAL_SOURCES" ]; } && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" = "1" ] && [ "$INSTALL_PI_CLI" = "true" ]; then
   echo "dry-run: would install/update Pi CLI $PI_CLI_PACKAGE"
 fi
 
-if [ -n "$EXTENSION_SOURCES" ] && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" != "1" ]; then
+if { [ -n "$EXTENSION_SOURCES" ] || [ -n "$EXTENSION_REMOVAL_SOURCES" ]; } && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" != "1" ]; then
   ensure_pi_cli
 fi
 
@@ -428,6 +464,40 @@ if [ "$CREATE_LAUNCHER" = "true" ]; then
   install_launcher "$LAUNCHER" "$AGENT_DIR"
 else
   echo "launcher: skipped"
+fi
+
+if [ -n "$EXTENSION_REMOVAL_SOURCES" ]; then
+  if [ "$CONFIG_ONLY" = "1" ] || [ "$INSTALL_EXTENSIONS" != "true" ]; then
+    echo "extension removals: skipped"
+  elif [ "$DRY_RUN" = "1" ]; then
+    while IFS= read -r extension_source; do
+      if [ -z "$extension_source" ]; then
+        continue
+      fi
+
+      if package_installed "$extension_source"; then
+        echo "dry-run: would remove extension $extension_source"
+      else
+        echo "dry-run: extension already absent $extension_source"
+      fi
+    done <<EOF
+$EXTENSION_REMOVAL_SOURCES
+EOF
+  else
+    while IFS= read -r extension_source; do
+      if [ -z "$extension_source" ]; then
+        continue
+      fi
+
+      if package_installed "$extension_source"; then
+        PI_CODING_AGENT_DIR="$AGENT_DIR" pi remove "$extension_source"
+      else
+        echo "extension: already absent $extension_source"
+      fi
+    done <<EOF
+$EXTENSION_REMOVAL_SOURCES
+EOF
+  fi
 fi
 
 if [ -n "$EXTENSION_SOURCES" ]; then

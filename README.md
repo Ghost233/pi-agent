@@ -38,7 +38,7 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 
 当前配置会自动安装 Pi Extension：
 
-- `npm:pi-subagents`
+- `npm:pi-agent-flow`
 - `npm:pi-rtk-optimizer`
 - `npm:@juicesharp/rpiv-todo`
 - `npm:pi-codex-goal`
@@ -61,6 +61,7 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - 官方 Pi CLI 会先通过 `npm install -g` 安装或更新
 - profile 内容没变时不会覆盖，也不会产生备份
 - `pi-ghost` 启动脚本内容没变时不会重写
+- profile 明确废弃的 Extension 会被移除
 - 已安装的 Extension 不会重复 `pi install`
 - 已安装过 Extension 时会执行一次 `pi update --extensions`
 

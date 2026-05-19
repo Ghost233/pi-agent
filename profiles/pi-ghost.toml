@@ -13,9 +13,13 @@ install_extensions = true
 update_extensions = true
 create_launcher = true
 
-[[extensions]]
+[[remove_extensions]]
 name = "pi-subagents"
 source = "npm:pi-subagents"
+
+[[extensions]]
+name = "pi-agent-flow"
+source = "npm:pi-agent-flow"
 enabled = true
 
 [[extensions]]
