@@ -10,6 +10,12 @@ Pi SDK agent 的个人配置还原仓库。
 curl -fsSL https://raw.githubusercontent.com/Ghost233/pi-agent/main/scripts/install.sh | bash
 ```
 
+如果当前电脑还没有 `pi` 命令，脚本会先通过 npm 安装官方 Pi CLI：
+
+```bash
+npm install -g @earendil-works/pi-coding-agent
+```
+
 默认会创建独立 Pi 环境：
 
 - 配置目录：`~/.pi/agent-pi-ghost`
@@ -66,6 +72,12 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 
 ```bash
 ./scripts/install.sh --config-only
+```
+
+不自动安装 Pi CLI：
+
+```bash
+./scripts/install.sh --no-pi-install
 ```
 
 只检查并安装缺失 Extension，不做更新：

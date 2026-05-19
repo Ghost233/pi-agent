@@ -8,6 +8,7 @@ launcher = "~/.local/bin/pi-ghost"
 
 [install]
 backup_existing = true
+install_pi_cli = true
 install_extensions = true
 update_extensions = true
 create_launcher = true

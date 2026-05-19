@@ -7,16 +7,18 @@ DEST="${PI_AGENT_CONFIG_DEST:-}"
 AGENT_DIR="${PI_AGENT_DIR:-}"
 LAUNCHER="${PI_AGENT_LAUNCHER:-}"
 LAUNCHER_DISABLED="0"
+PI_CLI_INSTALL_DISABLED="0"
 UPDATE_DISABLED="0"
 FORCE="0"
 DRY_RUN="0"
 CONFIG_ONLY="${PI_AGENT_CONFIG_ONLY:-0}"
+PI_CLI_PACKAGE="${PI_AGENT_PI_CLI_PACKAGE:-@earendil-works/pi-coding-agent}"
 RAW_BASE_URL="${PI_AGENT_RAW_BASE_URL:-https://raw.githubusercontent.com/Ghost233/pi-agent/main}"
 
 usage() {
   cat <<'USAGE'
 Usage:
-  install.sh [--profile pi-ghost] [--source path-or-url] [--agent-dir path] [--dest path] [--launcher path] [--no-launcher] [--no-update] [--force] [--config-only] [--dry-run]
+  install.sh [--profile pi-ghost] [--source path-or-url] [--agent-dir path] [--dest path] [--launcher path] [--no-launcher] [--no-pi-install] [--no-update] [--force] [--config-only] [--dry-run]
 
 Defaults:
   profile: pi-ghost
@@ -29,6 +31,7 @@ Environment:
   PI_AGENT_DIR           Override isolated Pi agent directory.
   PI_AGENT_LAUNCHER      Override launcher path.
   PI_AGENT_CONFIG_ONLY   Set to 1 to skip extension installation.
+  PI_AGENT_PI_CLI_PACKAGE Override Pi CLI npm package.
   PI_AGENT_RAW_BASE_URL  Override raw repository base URL.
   PI_AGENT_CONFIG_URL    Download a specific config URL.
 USAGE
@@ -58,6 +61,10 @@ while [ "$#" -gt 0 ]; do
       ;;
     --no-launcher)
       LAUNCHER_DISABLED="1"
+      shift
+      ;;
+    --no-pi-install)
+      PI_CLI_INSTALL_DISABLED="1"
       shift
       ;;
     --no-update)
@@ -173,12 +180,32 @@ extension_sources() {
 
 ensure_pi_cli() {
   if ! command -v pi >/dev/null 2>&1; then
-    echo "Pi CLI not found. Install Pi first, or rerun with --config-only to skip extensions." >&2
-    exit 1
+    if [ "$INSTALL_PI_CLI" = "true" ]; then
+      install_pi_cli
+    else
+      echo "Pi CLI not found. Install Pi first, or rerun with --config-only to skip extensions." >&2
+      exit 1
+    fi
   fi
 
   if ! PI_CODING_AGENT_DIR="$AGENT_DIR" pi --help >/dev/null 2>&1; then
     echo "Pi CLI is present but failed to start. Fix Pi first, or rerun with --config-only to skip extensions." >&2
+    exit 1
+  fi
+}
+
+install_pi_cli() {
+  if ! command -v npm >/dev/null 2>&1; then
+    echo "Pi CLI not found, and npm is required to install $PI_CLI_PACKAGE." >&2
+    exit 1
+  fi
+
+  echo "pi-cli: installing $PI_CLI_PACKAGE"
+  npm install -g "$PI_CLI_PACKAGE"
+  hash -r 2>/dev/null || true
+
+  if ! command -v pi >/dev/null 2>&1; then
+    echo "Installed $PI_CLI_PACKAGE, but pi is still not available in PATH." >&2
     exit 1
   fi
 }
@@ -286,11 +313,16 @@ if [ -z "$SOURCE" ] && [ -n "${PI_AGENT_CONFIG_URL:-}" ]; then
   SOURCE="$PI_AGENT_CONFIG_URL"
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_PROFILE="$SCRIPT_DIR/../profiles/$PROFILE.toml"
+SCRIPT_PATH="${BASH_SOURCE[0]:-${0:-}}"
+LOCAL_PROFILE=""
+
+if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+  LOCAL_PROFILE="$SCRIPT_DIR/../profiles/$PROFILE.toml"
+fi
 
 if [ -z "$SOURCE" ]; then
-  if [ -f "$LOCAL_PROFILE" ]; then
+  if [ -n "$LOCAL_PROFILE" ] && [ -f "$LOCAL_PROFILE" ]; then
     SOURCE="$LOCAL_PROFILE"
   else
     SOURCE="$RAW_BASE_URL/profiles/$PROFILE.toml"
@@ -358,6 +390,7 @@ fi
 
 LAUNCHER="$(expand_path "$LAUNCHER")"
 BACKUP_EXISTING="$(profile_bool install backup_existing true)"
+INSTALL_PI_CLI="$(profile_bool install install_pi_cli true)"
 INSTALL_EXTENSIONS="$(profile_bool install install_extensions true)"
 UPDATE_EXTENSIONS="$(profile_bool install update_extensions true)"
 CREATE_LAUNCHER="$(profile_bool install create_launcher true)"
@@ -365,6 +398,10 @@ EXTENSION_SOURCES="$(extension_sources)"
 
 if [ "$LAUNCHER_DISABLED" = "1" ]; then
   CREATE_LAUNCHER="false"
+fi
+
+if [ "$PI_CLI_INSTALL_DISABLED" = "1" ]; then
+  INSTALL_PI_CLI="false"
 fi
 
 if [ "$UPDATE_DISABLED" = "1" ]; then
