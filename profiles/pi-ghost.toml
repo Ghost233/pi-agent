@@ -17,6 +17,18 @@ create_launcher = true
 name = "pi-subagents"
 source = "npm:pi-subagents"
 
+[[remove_extensions]]
+name = "pi-context-usage"
+source = "npm:pi-context-usage"
+
+[[remove_extensions]]
+name = "pi-statusline"
+source = "npm:@narumitw/pi-statusline"
+
+[[remove_extensions]]
+name = "pi-context-prune"
+source = "npm:pi-context-prune"
+
 [[extensions]]
 name = "pi-agent-flow"
 source = "npm:pi-agent-flow"
@@ -59,8 +71,13 @@ source = "npm:pi-code-previews"
 enabled = true
 
 [[extensions]]
-name = "pi-context-usage"
-source = "npm:pi-context-usage"
+name = "pi-bar"
+source = "npm:pi-bar"
+enabled = true
+
+[[extensions]]
+name = "unipi-compactor"
+source = "npm:@pi-unipi/compactor"
 enabled = true
 
 [[files]]
@@ -83,6 +100,11 @@ target = "agents/api-doc-plan-dag.md"
 [[files]]
 source = "agents/api-doc-run-next.md"
 target = "agents/api-doc-run-next.md"
+
+[[home_files]]
+source = "configs/unipi/compactor/config.json"
+target = ".unipi/config/compactor/config.json"
+mode = "0644"
 
 [[remove_files]]
 target = "skills/api-doc-flow/scripts/claim-next-task.mjs"

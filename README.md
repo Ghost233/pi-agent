@@ -46,7 +46,8 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - `npm:@juicesharp/rpiv-btw`
 - `npm:@firstpick/pi-extension-safety-guard`
 - `npm:pi-code-previews`
-- `npm:pi-context-usage`
+- `npm:pi-bar`
+- `npm:@pi-unipi/compactor`
 
 同时会同步个人 Skill 和 Flow：
 
@@ -73,6 +74,13 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 
+同时会下发 UniPi compactor 配置：
+
+- 源文件：`configs/unipi/compactor/config.json`
+- 目标文件：`~/.unipi/config/compactor/config.json`
+- 自动压缩阈值：上下文占用达到 75%
+- 说明：`@pi-unipi/compactor` 当前读取固定的 `~/.unipi/config/compactor/config.json`，所以安装脚本会把仓库配置同步到这个位置。
+
 API 文档 Flow 的固定分层：
 
 - `api-doc-plan-dag`：理解新需求，只创建 `.pi-flow/dag.json` 和 `.pi-flow/groups.ndjson`
@@ -94,6 +102,7 @@ API 文档 Flow 的固定分层：
 - `pi-ghost` 启动脚本内容没变时不会重写
 - profile 明确废弃的 Extension 会被移除
 - Skill 和 Flow 文件内容没变时不会重写
+- UniPi compactor 配置内容没变时不会重写
 - 已安装的 Extension 不会重复 `pi install`
 - 已安装过 Extension 时会执行一次 `pi update --extensions`
 

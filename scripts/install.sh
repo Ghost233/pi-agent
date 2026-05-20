@@ -304,6 +304,62 @@ profile_file_removal_entries() {
   ' "$TMP_FILE"
 }
 
+profile_home_file_entries() {
+  awk -F= '
+    function trim(value) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      return value
+    }
+    function flush() {
+      if (in_file && source != "" && target != "" && enabled != "false") {
+        print source "\t" target "\t" mode
+      }
+    }
+    /^\[\[home_files\]\]/ {
+      flush()
+      in_file = 1
+      source = ""
+      target = ""
+      mode = "0644"
+      enabled = "true"
+      next
+    }
+    /^\[/ {
+      flush()
+      in_file = 0
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*source[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      source = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*target[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      target = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*mode[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      mode = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*enabled[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      enabled = trim(value)
+      next
+    }
+    END {
+      flush()
+    }
+  ' "$TMP_FILE"
+}
+
 ensure_pi_cli() {
   if [ "$INSTALL_PI_CLI" = "true" ]; then
     install_pi_cli
@@ -478,6 +534,50 @@ install_profile_file() {
   echo "managed file: installed $dest_file"
 }
 
+install_home_file() {
+  source_path="$1"
+  target_path="$2"
+  file_mode="$3"
+
+  case "$target_path" in
+    /*|*..*)
+      echo "Invalid home file target: $target_path" >&2
+      exit 1
+      ;;
+  esac
+
+  tmp_home_file="$(mktemp)"
+  fetch_profile_file "$source_path" "$tmp_home_file"
+  dest_file="$HOME/$target_path"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    if [ -f "$dest_file" ] && cmp -s "$tmp_home_file" "$dest_file"; then
+      echo "dry-run: home file unchanged $dest_file"
+    else
+      echo "dry-run: would install home file $dest_file"
+    fi
+    rm -f "$tmp_home_file"
+    return 0
+  fi
+
+  if [ -f "$dest_file" ] && cmp -s "$tmp_home_file" "$dest_file"; then
+    chmod "$file_mode" "$dest_file"
+    rm -f "$tmp_home_file"
+    echo "home file: unchanged $dest_file"
+    return 0
+  fi
+
+  if [ -e "$dest_file" ] && [ "$BACKUP_EXISTING" = "true" ]; then
+    backup_file "$dest_file"
+  fi
+
+  install -d "$(dirname "$dest_file")"
+  cp "$tmp_home_file" "$dest_file"
+  rm -f "$tmp_home_file"
+  chmod "$file_mode" "$dest_file"
+  echo "home file: installed $dest_file"
+}
+
 validate_managed_target() {
   target_path="$1"
 
@@ -631,6 +731,7 @@ EXTENSION_SOURCES="$(extension_sources)"
 EXTENSION_REMOVAL_SOURCES="$(extension_removal_sources)"
 PROFILE_FILE_ENTRIES="$(profile_file_entries)"
 PROFILE_FILE_REMOVAL_ENTRIES="$(profile_file_removal_entries)"
+PROFILE_HOME_FILE_ENTRIES="$(profile_home_file_entries)"
 
 if [ "$LAUNCHER_DISABLED" = "1" ]; then
   CREATE_LAUNCHER="false"
@@ -693,6 +794,22 @@ if [ -n "$PROFILE_FILE_ENTRIES" ]; then
     install_profile_file "$file_source" "$file_target" "$file_mode"
   done <<EOF
 $PROFILE_FILE_ENTRIES
+EOF
+fi
+
+if [ -n "$PROFILE_HOME_FILE_ENTRIES" ]; then
+  while IFS="$(printf '\t')" read -r file_source file_target file_mode; do
+    if [ -z "$file_source" ] || [ -z "$file_target" ]; then
+      continue
+    fi
+
+    if [ -z "$file_mode" ]; then
+      file_mode="0644"
+    fi
+
+    install_home_file "$file_source" "$file_target" "$file_mode"
+  done <<EOF
+$PROFILE_HOME_FILE_ENTRIES
 EOF
 fi
 

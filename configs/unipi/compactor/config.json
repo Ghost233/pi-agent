@@ -1,0 +1,79 @@
+{
+  "sessionGoals": {
+    "enabled": true,
+    "mode": "full"
+  },
+  "filesAndChanges": {
+    "enabled": true,
+    "mode": "all",
+    "maxPerCategory": 10
+  },
+  "commits": {
+    "enabled": true,
+    "mode": "brief",
+    "maxCommits": 8
+  },
+  "outstandingContext": {
+    "enabled": true,
+    "mode": "full",
+    "maxItems": 8
+  },
+  "userPreferences": {
+    "enabled": true,
+    "mode": "recent-only",
+    "maxPreferences": 10
+  },
+  "briefTranscript": {
+    "enabled": true,
+    "mode": "compact",
+    "userTokenLimit": 256,
+    "assistantTokenLimit": 200,
+    "toolCallLimit": 8
+  },
+  "sessionContinuity": {
+    "enabled": true,
+    "mode": "full",
+    "eventCategories": []
+  },
+  "fts5Index": {
+    "enabled": true,
+    "mode": "auto",
+    "chunkSize": 4096,
+    "cacheTtlHours": 24
+  },
+  "sandboxExecution": {
+    "enabled": true,
+    "mode": "safe-only",
+    "allowedLanguages": ["javascript", "typescript", "python", "shell"],
+    "outputLimit": 104857600
+  },
+  "toolDisplay": {
+    "enabled": false,
+    "mode": "opencode",
+    "diffLayout": "auto",
+    "diffIndicator": "bars",
+    "showThinkingLabels": true,
+    "showUserMessageBox": true,
+    "showBashSpinner": true,
+    "showPendingPreviews": true
+  },
+  "pipeline": {
+    "ttlCache": true,
+    "autoInjection": true,
+    "proximityReranking": true,
+    "timelineSort": true,
+    "progressiveThrottling": true,
+    "mmapPragma": true,
+    "customNoisePatterns": []
+  },
+  "autoCompaction": {
+    "enabled": true,
+    "thresholdPercent": 75,
+    "cooldownMs": 60000,
+    "repeatMinGrowthTokens": 4000,
+    "notify": true
+  },
+  "overrideDefaultCompaction": true,
+  "debug": false,
+  "showTruncationHints": true
+}
