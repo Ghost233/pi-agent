@@ -1,12 +1,12 @@
 ---
 name: api-doc-fix-one
-description: Claim one pending API documentation group and repair only its generated YAML.
+description: Worker flow that claims one API documentation group and repairs only its generated YAML.
 tools: batch bash find grep ls
 maxDepth: 0
 tier: flash
 ---
 
-mission: Claim exactly one pending API documentation task, compare its source document with its generated YAML, update only that generated YAML if needed, mark the task done or failed, then stop.
+mission: As a worker, claim exactly one pending API documentation task, compare its source document with its generated YAML, update only that generated YAML if needed, mark the task done or failed, then stop.
 
 workflow:
 1 Claim: first run `node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" claim --cwd "$PWD"`.
@@ -20,6 +20,7 @@ workflow:
 9 On failure run `node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" fail --cwd "$PWD" --id <group-id> --reason "<clear reason>"`.
 
 rules:
+Do not plan, rewrite, or inspect the DAG.
 Do not read `.pi-flow/groups.json` or `.pi-flow/groups.ndjson` directly.
 Do not modify the source API description file.
 Do not modify any file outside the claimed `generated_file` and `.pi-flow/state.json`.

@@ -1,53 +1,66 @@
 ---
 name: api-doc-flow
-description: Drive pi-agent-flow to process one queued API doc repair task with api-doc-fix-one/task-store. Use when asked to run the next API doc flow, claim a .pi-flow task, or avoid reading full groups files.
+description: Operate API documentation DAG flows with fixed Planner, Runner, Worker agents and task-store. Use for creating or running .pi-flow DAGs, claiming API doc tasks, or avoiding full groups files in context.
 ---
 
 # API Doc Flow
 
-Use this skill for API doc repair queues. It keeps large task files out of model
-context and exposes only one claimed task at a time.
+Use this skill for API documentation repair DAGs. Keep one skill and three fixed
+flow agents:
+
+- Planner: `api-doc-plan-dag`
+- Runner: `api-doc-run-next`
+- Worker: `api-doc-fix-one`
 
 ## Rules
 
-- Do not read `.pi-flow/groups.json` or `.pi-flow/groups.ndjson` directly.
-- Use `scripts/task-store.mjs` for add, claim, done, fail, status, current,
-  requeue, and validate.
-- Handle exactly one claimed task per invocation.
-- Project state stays in `.pi-flow/state.json`; scripts stay in this skill.
+- Planner may write only `.pi-flow/dag.json`, `.pi-flow/groups.ndjson`, and `.pi-flow/state.json`.
+- Runner may read DAG state and call one worker action; it must not re-plan.
+- Worker may edit only the claimed task's `generated_file`.
+- Do not read `.pi-flow/groups.json` or `.pi-flow/groups.ndjson` directly in normal execution.
+- Use `scripts/task-store.mjs` for queue and DAG state.
 
-## Flow Invocation
+## Flow Calls
 
-Call one flow from root state:
+Create a new DAG:
 
 ```json
 {
   "flow": [
     {
-      "type": "api-doc-fix-one",
+      "type": "api-doc-plan-dag",
       "cwd": "/Users/ghost/code/api-doc",
       "sessionMode": "fast",
-      "aim": "Fix next API group",
-      "intent": "Claim exactly one pending API documentation task, compare the source document with the generated YAML, update only that generated YAML if needed, update state, then stop."
+      "aim": "Plan API doc repair DAG",
+      "intent": "Analyze the API documentation request, create .pi-flow/dag.json and .pi-flow/groups.ndjson, validate them, then stop."
     }
   ]
 }
 ```
 
-`api-doc-fix-one` calls:
+Run the next DAG step:
 
-```bash
-node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" claim --cwd "$PWD"
-node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" done --cwd "$PWD" --id group-001
-node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" fail --cwd "$PWD" --id group-001 --reason "source document is ambiguous"
+```json
+{
+  "flow": [
+    {
+      "type": "api-doc-run-next",
+      "cwd": "/Users/ghost/code/api-doc",
+      "sessionMode": "fast",
+      "aim": "Run next API doc DAG step",
+      "intent": "Read DAG state, execute exactly one ready node or worker task, update state, then stop."
+    }
+  ]
+}
 ```
 
-Useful operator commands:
+## Commands
 
 ```bash
-node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" add --cwd "$PWD" --from .pi-flow/new-groups.ndjson
+node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" dag-status --cwd "$PWD"
+node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" dag-next --cwd "$PWD"
+node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" validate-dag --cwd "$PWD"
 node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" status --cwd "$PWD"
 node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" current --cwd "$PWD"
 node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" requeue --cwd "$PWD" --id group-001
-node "$PI_CODING_AGENT_DIR/skills/api-doc-flow/scripts/task-store.mjs" validate --cwd "$PWD"
 ```

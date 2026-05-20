@@ -51,9 +51,11 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 同时会同步个人 Skill 和 Flow：
 
 - Skill：`api-doc-flow`
-- Flow：`api-doc-fix-one`
+- Planner Flow：`api-doc-plan-dag`
+- Runner Flow：`api-doc-run-next`
+- Worker Flow：`api-doc-fix-one`
 
-`api-doc-flow` 的 `task-store.mjs` 随 Skill 下发到 `~/.pi/agent-pi-ghost/skills/api-doc-flow/scripts/`，项目里的 `.pi-flow/` 只保存运行数据，例如 `groups.json`、`groups.ndjson` 和 `state.json`。
+`api-doc-flow` 的 `task-store.mjs` 随 Skill 下发到 `~/.pi/agent-pi-ghost/skills/api-doc-flow/scripts/`，项目里的 `.pi-flow/` 只保存运行数据，例如 `dag.json`、`groups.json`、`groups.ndjson` 和 `state.json`。
 
 `task-store.mjs` 支持：
 
@@ -63,8 +65,21 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - `status` / `current`：查看任务进度或当前任务
 - `requeue`：把任务重新放回待处理
 - `validate`：校验任务清单
+- `dag-init`：初始化 DAG 并重置运行状态
+- `dag-next`：找出下一个可执行 DAG 节点
+- `dag-done` / `dag-fail`：修改 DAG 节点状态
+- `dag-status`：查看 DAG 和任务进度
+- `validate-dag`：校验 DAG 结构
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
+
+API 文档 Flow 的固定分层：
+
+- `api-doc-plan-dag`：理解新需求，只创建 `.pi-flow/dag.json` 和 `.pi-flow/groups.ndjson`
+- `api-doc-run-next`：读取 DAG 状态，只执行一个 ready 节点或一个 worker 任务
+- `api-doc-fix-one`：领取一个 group，只读取该 group 的两个文件，只修改对应 `.gen.yaml`
+
+这样 DAG 内容可以由 LLM 动态生成，但 Planner、Runner、Worker 的入口和权限边界是固定的。
 
 从本地仓库安装：
 

@@ -3,10 +3,22 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 
+const ALLOWED_DAG_NODE_TYPES = new Set([
+  "group_api_docs",
+  "map_group",
+  "fix_one",
+  "summarize_result",
+]);
+
+const ALLOWED_WORKERS = new Set(["api-doc-fix-one"]);
+
+const TERMINAL_TASK_STATUSES = new Set(["done", "failed"]);
+const TERMINAL_NODE_STATUSES = new Set(["done", "failed"]);
+
 function parseArgs(argv) {
   const command = argv[2];
   if (!command || command.startsWith("-")) {
-    throw new Error("Usage: task-store.mjs <add|claim|finish|fail|done|status|current|requeue|validate> [options]");
+    throw new Error("Usage: task-store.mjs <add|claim|finish|fail|done|status|current|requeue|validate|dag-init|dag-next|dag-done|dag-fail|dag-status|validate-dag> [options]");
   }
 
   const args = { command, cwd: process.cwd() };
@@ -18,6 +30,8 @@ function parseArgs(argv) {
       args.groups = argv[++index];
     } else if (arg === "--state") {
       args.state = argv[++index];
+    } else if (arg === "--dag") {
+      args.dag = argv[++index];
     } else if (arg === "--id") {
       args.id = argv[++index];
     } else if (arg === "--status") {
@@ -28,6 +42,8 @@ function parseArgs(argv) {
       args.from = argv[++index];
     } else if (arg === "--task-json") {
       args.taskJson = argv[++index];
+    } else if (arg === "--dag-json") {
+      args.dagJson = argv[++index];
     } else if (arg === "--limit") {
       args.limit = Number(argv[++index]);
     } else {
@@ -60,7 +76,16 @@ function normalizeState(state) {
     completed: Array.isArray(state.completed) ? state.completed : [],
     failed: Array.isArray(state.failed) ? state.failed : [],
     current: state.current ?? null,
+    dag: normalizeDagState(state.dag ?? {}),
     updated_at: state.updated_at ?? null,
+  };
+}
+
+function normalizeDagState(dagState) {
+  return {
+    completed: Array.isArray(dagState.completed) ? dagState.completed : [],
+    failed: Array.isArray(dagState.failed) ? dagState.failed : [],
+    current: dagState.current ?? null,
   };
 }
 
@@ -96,7 +121,7 @@ function isTaskClosedInState(task, state) {
 }
 
 function isTaskClosed(task, state) {
-  if (task?.status === "done" || task?.status === "failed") {
+  if (TERMINAL_TASK_STATUSES.has(task?.status)) {
     return true;
   }
   return isTaskClosedInState(task, state);
@@ -104,6 +129,10 @@ function isTaskClosed(task, state) {
 
 function resolveStatePath(cwd, explicitPath) {
   return path.resolve(cwd, explicitPath ?? ".pi-flow/state.json");
+}
+
+function resolveDagPath(cwd, explicitPath) {
+  return path.resolve(cwd, explicitPath ?? ".pi-flow/dag.json");
 }
 
 function resolveGroupsPath(cwd, explicitPath, forAdd = false) {
@@ -226,6 +255,21 @@ async function loadTasksToAdd(args, cwd) {
   }
   const stdin = await readStdin();
   return parseTaskInput(stdin, "stdin");
+}
+
+async function loadDagInput(args, cwd) {
+  if (args.dagJson) {
+    return JSON.parse(args.dagJson);
+  }
+  if (args.from) {
+    const fromPath = path.resolve(cwd, args.from);
+    return readJson(fromPath, null);
+  }
+  const stdin = await readStdin();
+  if (!stdin.trim()) {
+    throw new Error("DAG input is required through --dag-json, --from, or stdin");
+  }
+  return JSON.parse(stdin);
 }
 
 function assertValidTask(task) {
@@ -524,6 +568,443 @@ async function commandValidate(args) {
   });
 }
 
+function failedNodeIds(state) {
+  return new Set(
+    state.dag.failed
+      .map((item) => (typeof item === "string" ? item : item?.id))
+      .filter(Boolean),
+  );
+}
+
+function removeFailedNode(state, id) {
+  state.dag.failed = state.dag.failed.filter((item) => {
+    const failedId = typeof item === "string" ? item : item?.id;
+    return failedId !== id;
+  });
+}
+
+function removeCompletedNode(state, id) {
+  state.dag.completed = state.dag.completed.filter((item) => item !== id);
+}
+
+function nodeId(node) {
+  return typeof node?.id === "string" && node.id.trim() ? node.id.trim() : null;
+}
+
+function nodeDeps(node) {
+  return Array.isArray(node.depends_on) ? node.depends_on : [];
+}
+
+function nodeStatus(node, state) {
+  const id = nodeId(node);
+  if (!id) {
+    return "invalid";
+  }
+  if (failedNodeIds(state).has(id) || node.status === "failed") {
+    return "failed";
+  }
+  if (state.dag.completed.includes(id) || node.status === "done") {
+    return "done";
+  }
+  if (state.dag.current?.id === id) {
+    return "running";
+  }
+  return node.status === "running" ? "running" : "pending";
+}
+
+function nodeDone(node, state) {
+  return nodeStatus(node, state) === "done";
+}
+
+function dependenciesDone(node, state, nodeMap) {
+  return nodeDeps(node).every((depId) => {
+    const dep = nodeMap.get(depId);
+    return dep && nodeDone(dep, state);
+  });
+}
+
+function markNodeDone(state, id) {
+  removeCompletedNode(state, id);
+  removeFailedNode(state, id);
+  state.dag.completed.push(id);
+  if (state.dag.current?.id === id) {
+    state.dag.current = null;
+  }
+}
+
+function markNodeFailed(state, id, reason) {
+  removeCompletedNode(state, id);
+  removeFailedNode(state, id);
+  state.dag.failed.push({
+    id,
+    reason: reason || "No reason provided",
+    failed_at: new Date().toISOString(),
+  });
+  if (state.dag.current?.id === id) {
+    state.dag.current = null;
+  }
+}
+
+function mapNodeGroupsPath(cwd, node, args) {
+  const groupsPath = node?.input?.groups ?? args.groups;
+  if (!groupsPath) {
+    return resolveGroupsPath(cwd, undefined);
+  }
+  if (path.isAbsolute(groupsPath)) {
+    throw new Error(`DAG node ${node.id} input.groups must be relative`);
+  }
+  return path.resolve(cwd, groupsPath);
+}
+
+function validateDagObject(dag, cwd, options = {}) {
+  const issues = [];
+  if (!dag || typeof dag !== "object" || Array.isArray(dag)) {
+    return [{ type: "dag_must_be_object" }];
+  }
+  if (dag.version !== 1) {
+    issues.push({ type: "unsupported_version", version: dag.version });
+  }
+  if (!Array.isArray(dag.nodes) || dag.nodes.length === 0) {
+    issues.push({ type: "missing_nodes" });
+    return issues;
+  }
+
+  const seenIds = new Set();
+  const nodeMap = new Map();
+  for (const node of dag.nodes) {
+    const id = nodeId(node);
+    if (!id) {
+      issues.push({ type: "missing_node_id" });
+      continue;
+    }
+    if (seenIds.has(id)) {
+      issues.push({ id, type: "duplicate_node_id" });
+    }
+    seenIds.add(id);
+    nodeMap.set(id, node);
+
+    if (!ALLOWED_DAG_NODE_TYPES.has(node.type)) {
+      issues.push({ id, type: "unsupported_node_type", node_type: node.type });
+    }
+    if (node.depends_on !== undefined && !Array.isArray(node.depends_on)) {
+      issues.push({ id, type: "depends_on_must_be_array" });
+    }
+    if (node.status !== undefined && !["pending", "running", "done", "failed"].includes(node.status)) {
+      issues.push({ id, type: "unsupported_status", status: node.status });
+    }
+    if (node.type === "map_group") {
+      if (!ALLOWED_WORKERS.has(node.worker)) {
+        issues.push({ id, type: "unsupported_worker", worker: node.worker });
+      }
+      if (!node.input?.groups) {
+        issues.push({ id, type: "missing_groups_input" });
+      } else if (path.isAbsolute(node.input.groups)) {
+        issues.push({ id, type: "absolute_groups_input", path: node.input.groups });
+      } else if (options.checkFiles && !fs.existsSync(path.resolve(cwd, node.input.groups))) {
+        issues.push({ id, type: "groups_input_not_found", path: node.input.groups });
+      }
+    }
+  }
+
+  for (const node of dag.nodes) {
+    const id = nodeId(node);
+    if (!id) {
+      continue;
+    }
+    for (const depId of nodeDeps(node)) {
+      if (!nodeMap.has(depId)) {
+        issues.push({ id, type: "missing_dependency", dependency: depId });
+      }
+    }
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  const visit = (id, stack) => {
+    if (visited.has(id)) {
+      return;
+    }
+    if (visiting.has(id)) {
+      issues.push({ id, type: "cycle", path: [...stack, id] });
+      return;
+    }
+    visiting.add(id);
+    const node = nodeMap.get(id);
+    for (const depId of nodeDeps(node)) {
+      if (nodeMap.has(depId)) {
+        visit(depId, [...stack, id]);
+      }
+    }
+    visiting.delete(id);
+    visited.add(id);
+  };
+  for (const id of nodeMap.keys()) {
+    visit(id, []);
+  }
+
+  return issues;
+}
+
+async function commandDagInit(args) {
+  const cwd = path.resolve(args.cwd);
+  const dagPath = resolveDagPath(cwd, args.dag);
+  const statePath = resolveStatePath(cwd, args.state);
+  const dag = await loadDagInput(args, cwd);
+  const issues = validateDagObject(dag, cwd, { checkFiles: true });
+  if (issues.length > 0) {
+    output({
+      status: "INVALID_DAG",
+      issue_count: issues.length,
+      issues,
+    });
+    process.exitCode = 1;
+    return;
+  }
+
+  writeJsonAtomic(dagPath, dag);
+  const state = normalizeState({});
+  state.updated_at = new Date().toISOString();
+  writeJsonAtomic(statePath, state);
+  output({
+    status: "DAG_INITIALIZED",
+    dag_path: path.relative(cwd, dagPath),
+    state_path: path.relative(cwd, statePath),
+    nodes: dag.nodes.length,
+  });
+}
+
+async function commandValidateDag(args) {
+  const cwd = path.resolve(args.cwd);
+  const dagPath = resolveDagPath(cwd, args.dag);
+  const limit = Number.isFinite(args.limit) ? args.limit : 50;
+  if (!fs.existsSync(dagPath)) {
+    output({
+      status: "INVALID_DAG",
+      dag_path: path.relative(cwd, dagPath),
+      issues: [{ type: "dag_not_found" }],
+    });
+    return;
+  }
+  const dag = readJson(dagPath, null);
+  const issues = validateDagObject(dag, cwd, { checkFiles: true });
+  output({
+    status: issues.length === 0 ? "VALID_DAG" : "INVALID_DAG",
+    dag_path: path.relative(cwd, dagPath),
+    node_count: Array.isArray(dag?.nodes) ? dag.nodes.length : 0,
+    issue_count: issues.length,
+    issues: issues.slice(0, limit),
+    truncated: issues.length > limit,
+  });
+}
+
+async function commandDagStatus(args) {
+  const cwd = path.resolve(args.cwd);
+  const dagPath = resolveDagPath(cwd, args.dag);
+  const statePath = resolveStatePath(cwd, args.state);
+  if (!fs.existsSync(dagPath)) {
+    output({
+      status: "BLOCKED_DAG_NOT_FOUND",
+      dag_path: path.relative(cwd, dagPath),
+    });
+    return;
+  }
+  const dag = readJson(dagPath, null);
+  const issues = validateDagObject(dag, cwd, { checkFiles: false });
+  if (issues.length > 0) {
+    output({
+      status: "INVALID_DAG",
+      dag_path: path.relative(cwd, dagPath),
+      issue_count: issues.length,
+      issues,
+    });
+    return;
+  }
+  const state = normalizeState(readJson(statePath, {}));
+  const nodeMap = new Map(dag.nodes.map((node) => [node.id, node]));
+  const nodes = [];
+  for (const node of dag.nodes) {
+    const summary = {
+      id: node.id,
+      type: node.type,
+      status: nodeStatus(node, state),
+      depends_on: nodeDeps(node),
+    };
+    if (node.type === "map_group") {
+      const groupsPath = mapNodeGroupsPath(cwd, node, args);
+      summary.worker = node.worker;
+      summary.groups_path = path.relative(cwd, groupsPath);
+      summary.tasks = await countTasks(groupsPath, state);
+    }
+    summary.ready = summary.status === "pending" && dependenciesDone(node, state, nodeMap);
+    nodes.push(summary);
+  }
+  output({
+    status: "DAG_STATUS",
+    dag_path: path.relative(cwd, dagPath),
+    state_path: path.relative(cwd, statePath),
+    current: state.dag.current?.id ?? null,
+    nodes,
+  });
+}
+
+async function commandDagNext(args) {
+  const cwd = path.resolve(args.cwd);
+  const dagPath = resolveDagPath(cwd, args.dag);
+  const statePath = resolveStatePath(cwd, args.state);
+  if (!fs.existsSync(dagPath)) {
+    output({
+      status: "BLOCKED_DAG_NOT_FOUND",
+      dag_path: path.relative(cwd, dagPath),
+    });
+    return;
+  }
+
+  const dag = readJson(dagPath, null);
+  const issues = validateDagObject(dag, cwd, { checkFiles: true });
+  if (issues.length > 0) {
+    output({
+      status: "INVALID_DAG",
+      dag_path: path.relative(cwd, dagPath),
+      issue_count: issues.length,
+      issues,
+    });
+    return;
+  }
+
+  const state = normalizeState(readJson(statePath, {}));
+  const nodeMap = new Map(dag.nodes.map((node) => [node.id, node]));
+
+  if (state.dag.current) {
+    const currentNode = nodeMap.get(state.dag.current.id);
+    if (currentNode && !TERMINAL_NODE_STATUSES.has(nodeStatus(currentNode, state))) {
+      output({
+        status: "DAG_NEXT",
+        resumed: true,
+        action: state.dag.current.action,
+        node: state.dag.current,
+        state_path: path.relative(cwd, statePath),
+      });
+      return;
+    }
+    state.dag.current = null;
+  }
+
+  for (const node of dag.nodes) {
+    const id = nodeId(node);
+    const status = nodeStatus(node, state);
+    if (!id || status === "done") {
+      continue;
+    }
+    if (status === "failed") {
+      output({
+        status: "DAG_BLOCKED",
+        reason: "node_failed",
+        node: { id, type: node.type },
+      });
+      return;
+    }
+    if (!dependenciesDone(node, state, nodeMap)) {
+      continue;
+    }
+
+    if (node.type === "map_group") {
+      const groupsPath = mapNodeGroupsPath(cwd, node, args);
+      if (!fs.existsSync(groupsPath)) {
+        output({
+          status: "BLOCKED_GROUPS_NOT_FOUND",
+          node: { id, type: node.type },
+          groups_path: path.relative(cwd, groupsPath),
+        });
+        return;
+      }
+      const counts = await countTasks(groupsPath, state);
+      if (counts.failed > 0) {
+        output({
+          status: "DAG_BLOCKED",
+          reason: "map_group_has_failed_tasks",
+          node: { id, type: node.type, worker: node.worker },
+          groups_path: path.relative(cwd, groupsPath),
+          tasks: counts,
+        });
+        return;
+      }
+      if (counts.pending > 0) {
+        output({
+          status: "DAG_NEXT",
+          resumed: false,
+          action: "run_worker",
+          node: { id, type: node.type, worker: node.worker },
+          groups_path: path.relative(cwd, groupsPath),
+          tasks: counts,
+        });
+        return;
+      }
+      if (counts.total === 0) {
+        output({
+          status: "DAG_BLOCKED",
+          reason: "map_group_has_no_tasks",
+          node: { id, type: node.type, worker: node.worker },
+          groups_path: path.relative(cwd, groupsPath),
+        });
+        return;
+      }
+      markNodeDone(state, id);
+      state.updated_at = new Date().toISOString();
+      writeJsonAtomic(statePath, state);
+      continue;
+    }
+
+    state.dag.current = {
+      id,
+      type: node.type,
+      action: node.type,
+      input: node.input ?? {},
+    };
+    state.updated_at = new Date().toISOString();
+    writeJsonAtomic(statePath, state);
+    output({
+      status: "DAG_NEXT",
+      resumed: false,
+      action: node.type,
+      node: state.dag.current,
+      state_path: path.relative(cwd, statePath),
+    });
+    return;
+  }
+
+  state.dag.current = null;
+  state.updated_at = new Date().toISOString();
+  writeJsonAtomic(statePath, state);
+  output({
+    status: "DAG_DONE",
+    dag_path: path.relative(cwd, dagPath),
+    state_path: path.relative(cwd, statePath),
+  });
+}
+
+function commandDagFinish(args) {
+  const cwd = path.resolve(args.cwd);
+  const statePath = resolveStatePath(cwd, args.state);
+  const id = args.id;
+  if (!id) {
+    throw new Error("--id is required");
+  }
+
+  const state = normalizeState(readJson(statePath, {}));
+  if (args.command === "dag-done") {
+    markNodeDone(state, id);
+  } else {
+    markNodeFailed(state, id, args.reason);
+  }
+  state.updated_at = new Date().toISOString();
+  writeJsonAtomic(statePath, state);
+  output({
+    status: args.command === "dag-done" ? "DAG_NODE_DONE" : "DAG_NODE_FAILED",
+    id,
+    state_path: path.relative(cwd, statePath),
+  });
+}
+
 async function main() {
   const args = parseArgs(process.argv);
   switch (args.command) {
@@ -549,6 +1030,22 @@ async function main() {
       break;
     case "validate":
       await commandValidate(args);
+      break;
+    case "dag-init":
+      await commandDagInit(args);
+      break;
+    case "dag-next":
+      await commandDagNext(args);
+      break;
+    case "dag-done":
+    case "dag-fail":
+      commandDagFinish(args);
+      break;
+    case "dag-status":
+      await commandDagStatus(args);
+      break;
+    case "validate-dag":
+      await commandValidateDag(args);
       break;
     default:
       throw new Error(`Unknown command: ${args.command}`);

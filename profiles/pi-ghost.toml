@@ -76,6 +76,14 @@ mode = "0755"
 source = "agents/api-doc-fix-one.md"
 target = "agents/api-doc-fix-one.md"
 
+[[files]]
+source = "agents/api-doc-plan-dag.md"
+target = "agents/api-doc-plan-dag.md"
+
+[[files]]
+source = "agents/api-doc-run-next.md"
+target = "agents/api-doc-run-next.md"
+
 [[remove_files]]
 target = "skills/api-doc-flow/scripts/claim-next-task.mjs"
 
