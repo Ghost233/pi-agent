@@ -62,3 +62,22 @@ enabled = true
 name = "pi-context-usage"
 source = "npm:pi-context-usage"
 enabled = true
+
+[[files]]
+source = "skills/api-doc-flow/SKILL.md"
+target = "skills/api-doc-flow/SKILL.md"
+
+[[files]]
+source = "skills/api-doc-flow/scripts/task-store.mjs"
+target = "skills/api-doc-flow/scripts/task-store.mjs"
+mode = "0755"
+
+[[files]]
+source = "agents/api-doc-fix-one.md"
+target = "agents/api-doc-fix-one.md"
+
+[[remove_files]]
+target = "skills/api-doc-flow/scripts/claim-next-task.mjs"
+
+[[remove_files]]
+target = "skills/api-doc-flow/scripts/finish-task.mjs"

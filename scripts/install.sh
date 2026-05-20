@@ -213,6 +213,97 @@ extension_removal_sources() {
   ' "$TMP_FILE"
 }
 
+profile_file_entries() {
+  awk -F= '
+    function trim(value) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      return value
+    }
+    function flush() {
+      if (in_file && source != "" && target != "" && enabled != "false") {
+        print source "\t" target "\t" mode
+      }
+    }
+    /^\[\[files\]\]/ {
+      flush()
+      in_file = 1
+      source = ""
+      target = ""
+      mode = "0644"
+      enabled = "true"
+      next
+    }
+    /^\[/ {
+      flush()
+      in_file = 0
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*source[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      source = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*target[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      target = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*mode[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      mode = trim(value)
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*enabled[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      enabled = trim(value)
+      next
+    }
+    END {
+      flush()
+    }
+  ' "$TMP_FILE"
+}
+
+profile_file_removal_entries() {
+  awk -F= '
+    function trim(value) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^"|"$/, "", value)
+      return value
+    }
+    function flush() {
+      if (in_file && target != "") {
+        print target
+      }
+    }
+    /^\[\[remove_files\]\]/ {
+      flush()
+      in_file = 1
+      target = ""
+      next
+    }
+    /^\[/ {
+      flush()
+      in_file = 0
+      next
+    }
+    in_file && $1 ~ /^[[:space:]]*target[[:space:]]*$/ {
+      value = $2
+      sub(/[[:space:]]*#.*/, "", value)
+      target = trim(value)
+      next
+    }
+    END {
+      flush()
+    }
+  ' "$TMP_FILE"
+}
+
 ensure_pi_cli() {
   if [ "$INSTALL_PI_CLI" = "true" ]; then
     install_pi_cli
@@ -314,6 +405,113 @@ install_profile() {
   echo "profile: installed $dest_file"
 }
 
+fetch_profile_file() {
+  source_path="$1"
+  output_path="$2"
+
+  case "$source_path" in
+    https://*|http://*)
+      if ! command -v curl >/dev/null 2>&1; then
+        echo "curl is required to download $source_path" >&2
+        exit 1
+      fi
+      curl -fsSL "$source_path" -o "$output_path"
+      ;;
+    /*)
+      if [ ! -f "$source_path" ]; then
+        echo "Profile file source not found: $source_path" >&2
+        exit 1
+      fi
+      cp "$source_path" "$output_path"
+      ;;
+    *)
+      if [ -n "$REPO_ROOT" ] && [ -f "$REPO_ROOT/$source_path" ]; then
+        cp "$REPO_ROOT/$source_path" "$output_path"
+      else
+        if ! command -v curl >/dev/null 2>&1; then
+          echo "curl is required to download $RAW_BASE_URL/$source_path" >&2
+          exit 1
+        fi
+        curl -fsSL "$RAW_BASE_URL/$source_path" -o "$output_path"
+      fi
+      ;;
+  esac
+}
+
+install_profile_file() {
+  source_path="$1"
+  target_path="$2"
+  file_mode="$3"
+
+  case "$target_path" in
+    /*|*..*)
+      echo "Invalid managed file target: $target_path" >&2
+      exit 1
+      ;;
+  esac
+
+  tmp_profile_file="$(mktemp)"
+  fetch_profile_file "$source_path" "$tmp_profile_file"
+  dest_file="$AGENT_DIR/$target_path"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    if [ -f "$dest_file" ] && cmp -s "$tmp_profile_file" "$dest_file"; then
+      echo "dry-run: managed file unchanged $dest_file"
+    else
+      echo "dry-run: would install managed file $dest_file"
+    fi
+    rm -f "$tmp_profile_file"
+    return 0
+  fi
+
+  if [ -f "$dest_file" ] && cmp -s "$tmp_profile_file" "$dest_file"; then
+    chmod "$file_mode" "$dest_file"
+    rm -f "$tmp_profile_file"
+    echo "managed file: unchanged $dest_file"
+    return 0
+  fi
+
+  install -d "$(dirname "$dest_file")"
+  cp "$tmp_profile_file" "$dest_file"
+  rm -f "$tmp_profile_file"
+  chmod "$file_mode" "$dest_file"
+  echo "managed file: installed $dest_file"
+}
+
+validate_managed_target() {
+  target_path="$1"
+
+  case "$target_path" in
+    /*|*..*)
+      echo "Invalid managed file target: $target_path" >&2
+      exit 1
+      ;;
+  esac
+}
+
+remove_profile_file() {
+  target_path="$1"
+
+  validate_managed_target "$target_path"
+  dest_file="$AGENT_DIR/$target_path"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    if [ -e "$dest_file" ]; then
+      echo "dry-run: would remove managed file $dest_file"
+    else
+      echo "dry-run: managed file already absent $dest_file"
+    fi
+    return 0
+  fi
+
+  if [ -e "$dest_file" ]; then
+    rm -f "$dest_file"
+    echo "managed file: removed $dest_file"
+  else
+    echo "managed file: already absent $dest_file"
+  fi
+}
+
 package_installed() {
   package_source="$1"
   settings_file="$AGENT_DIR/settings.json"
@@ -348,9 +546,11 @@ fi
 
 SCRIPT_PATH="${BASH_SOURCE[0]:-${0:-}}"
 LOCAL_PROFILE=""
+REPO_ROOT=""
 
 if [ -n "$SCRIPT_PATH" ] && [ -f "$SCRIPT_PATH" ]; then
   SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+  REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   LOCAL_PROFILE="$SCRIPT_DIR/../profiles/$PROFILE.toml"
 fi
 
@@ -429,6 +629,8 @@ UPDATE_EXTENSIONS="$(profile_bool install update_extensions true)"
 CREATE_LAUNCHER="$(profile_bool install create_launcher true)"
 EXTENSION_SOURCES="$(extension_sources)"
 EXTENSION_REMOVAL_SOURCES="$(extension_removal_sources)"
+PROFILE_FILE_ENTRIES="$(profile_file_entries)"
+PROFILE_FILE_REMOVAL_ENTRIES="$(profile_file_removal_entries)"
 
 if [ "$LAUNCHER_DISABLED" = "1" ]; then
   CREATE_LAUNCHER="false"
@@ -464,6 +666,34 @@ if [ "$CREATE_LAUNCHER" = "true" ]; then
   install_launcher "$LAUNCHER" "$AGENT_DIR"
 else
   echo "launcher: skipped"
+fi
+
+if [ -n "$PROFILE_FILE_REMOVAL_ENTRIES" ]; then
+  while IFS= read -r file_target; do
+    if [ -z "$file_target" ]; then
+      continue
+    fi
+
+    remove_profile_file "$file_target"
+  done <<EOF
+$PROFILE_FILE_REMOVAL_ENTRIES
+EOF
+fi
+
+if [ -n "$PROFILE_FILE_ENTRIES" ]; then
+  while IFS="$(printf '\t')" read -r file_source file_target file_mode; do
+    if [ -z "$file_source" ] || [ -z "$file_target" ]; then
+      continue
+    fi
+
+    if [ -z "$file_mode" ]; then
+      file_mode="0644"
+    fi
+
+    install_profile_file "$file_source" "$file_target" "$file_mode"
+  done <<EOF
+$PROFILE_FILE_ENTRIES
+EOF
 fi
 
 if [ -n "$EXTENSION_REMOVAL_SOURCES" ]; then

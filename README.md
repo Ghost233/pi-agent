@@ -48,6 +48,22 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - `npm:pi-code-previews`
 - `npm:pi-context-usage`
 
+同时会同步个人 Skill 和 Flow：
+
+- Skill：`api-doc-flow`
+- Flow：`api-doc-fix-one`
+
+`api-doc-flow` 的 `task-store.mjs` 随 Skill 下发到 `~/.pi/agent-pi-ghost/skills/api-doc-flow/scripts/`，项目里的 `.pi-flow/` 只保存运行数据，例如 `groups.json`、`groups.ndjson` 和 `state.json`。
+
+`task-store.mjs` 支持：
+
+- `add`：添加任务
+- `claim`：领取一个未完成任务
+- `done` / `fail`：修改任务状态
+- `status` / `current`：查看任务进度或当前任务
+- `requeue`：把任务重新放回待处理
+- `validate`：校验任务清单
+
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 
 从本地仓库安装：
@@ -62,6 +78,7 @@ PI_CODING_AGENT_DIR="$HOME/.pi/agent-pi-ghost" pi
 - profile 内容没变时不会覆盖，也不会产生备份
 - `pi-ghost` 启动脚本内容没变时不会重写
 - profile 明确废弃的 Extension 会被移除
+- Skill 和 Flow 文件内容没变时不会重写
 - 已安装的 Extension 不会重复 `pi install`
 - 已安装过 Extension 时会执行一次 `pi update --extensions`
 
