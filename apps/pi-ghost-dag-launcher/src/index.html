@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi Ghost DAG 控制台</title>
+    <link rel="icon" type="image/png" href="./assets/pi-ghost-dag-icon.png">
+    <link rel="stylesheet" href="./vendor/tabler-icons/tabler-icons.min.css">
+    <link rel="stylesheet" href="./vendor/xterm/xterm.css">
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <aside class="sidebar">
+        <header class="brand">
+          <span class="brand-mark"><img src="./assets/pi-ghost-dag-icon.png" alt=""></span>
+          <div>
+            <h1>Pi Ghost</h1>
+            <p>DAG 控制台</p>
+          </div>
+          <span id="status-pill" class="pill stopped">已停止</span>
+        </header>
+
+        <input id="cwd" type="hidden">
+
+        <section id="project-panel" class="workspace-list">
+          <div class="section-title compact project-title">
+            <h2>项目</h2>
+            <div class="project-actions">
+              <span id="workspace-count">0</span>
+              <button id="project-menu-toggle" class="add-project-button" title="添加项目"><i class="ti ti-folder-plus"></i><span>添加</span></button>
+              <button id="remove-workspace" title="移除当前项目"><i class="ti ti-trash"></i></button>
+            </div>
+            <div id="project-menu" class="project-menu hidden">
+              <button id="create-project"><i class="ti ti-folder-plus"></i><span>新建空白项目</span></button>
+              <button id="use-folder"><i class="ti ti-folder-open"></i><span>使用现有文件夹</span></button>
+            </div>
+          </div>
+          <div id="drop-hint" class="drop-hint hidden">释放以添加目录</div>
+          <div id="workspaces"></div>
+        </section>
+      </aside>
+      <div id="sidebar-resizer" class="resize-handle vertical" title="调整侧栏宽度"></div>
+
+      <section id="main-shell" class="main">
+        <header class="topbar">
+          <div>
+            <h2 id="current-title">未选择工作区</h2>
+            <p id="current-path">选择左侧工作区后启动服务。</p>
+          </div>
+          <div class="top-actions">
+            <button id="start" class="primary"><i class="ti ti-player-play"></i><span>启动</span></button>
+            <button id="force-stop" class="danger hidden" title="强制停止服务状态记录中的后台进程"><i class="ti ti-square-x"></i><span>强制停止</span></button>
+            <button id="open-browser"><i class="ti ti-external-link"></i><span>浏览器</span></button>
+            <button id="open-server-settings"><i class="ti ti-server-cog"></i><span>服务设置</span></button>
+            <button id="refresh"><i class="ti ti-refresh"></i><span>刷新数据</span></button>
+            <button id="restart-app" title="重启 Launcher 应用，不停止后台服务"><i class="ti ti-reload"></i><span>重启应用</span></button>
+          </div>
+        </header>
+
+        <section id="console-view" class="content-grid">
+          <section class="panel dag-panel">
+            <div class="section-title">
+              <h2><i class="ti ti-sitemap"></i>DAG 全局图</h2>
+              <div class="dag-toolbar">
+                <span id="dag-name">未创建</span>
+                <span id="dag-selection">未选择</span>
+                <button id="dag-zoom-out" title="缩小"><i class="ti ti-zoom-out"></i></button>
+                <button id="dag-zoom-reset" title="重置缩放"><span>100%</span></button>
+                <button id="dag-zoom-in" title="放大"><i class="ti ti-zoom-in"></i></button>
+                <button id="dag-select-mode" title="框选多个节点"><i class="ti ti-select"></i><span>框选</span></button>
+                <button id="copy-node" title="复制已选节点信息"><i class="ti ti-copy"></i><span>复制节点</span></button>
+                <button data-service-action="run-next"><i class="ti ti-player-skip-forward"></i><span>下一步</span></button>
+                <button data-service-action="run-until-blocked"><i class="ti ti-player-track-next"></i><span>运行到阻塞</span></button>
+                <button id="clear-logs"><i class="ti ti-eraser"></i><span>清空日志</span></button>
+              </div>
+            </div>
+            <div id="dag-graph" class="dag-graph"></div>
+          </section>
+          <div id="inspector-resizer" class="resize-handle vertical inspector-resizer" title="调整右侧面板宽度"></div>
+
+          <section class="panel node-panel">
+            <div class="section-title">
+              <h2><i class="ti ti-activity"></i>节点</h2>
+              <span id="node-count">0</span>
+            </div>
+            <div id="blocker" class="blocker hidden"></div>
+            <div id="node-detail" class="node-detail"></div>
+            <div id="node-list" class="node-list"></div>
+          </section>
+          <div id="task-resizer" class="resize-handle horizontal task-resizer" title="调整任务区高度"></div>
+
+          <section class="panel task-panel">
+            <div class="section-title">
+              <h2><i class="ti ti-list-check"></i>任务</h2>
+              <span id="task-summary">0 / 0</span>
+            </div>
+            <div id="task-list" class="task-list"></div>
+          </section>
+        </section>
+        <div id="bottom-resizer" class="resize-handle horizontal bottom-resizer" title="调整底部控制台高度"></div>
+
+        <section id="bottom-console" class="bottom-console">
+          <nav class="tabs">
+            <button class="tab active" data-tab="orchestrator"><i class="ti ti-terminal-2"></i><span>编排者</span></button>
+            <button class="tab" data-tab="service"><i class="ti ti-file-text"></i><span>服务日志</span></button>
+            <button class="tab" data-tab="runs"><i class="ti ti-activity-heartbeat"></i><span>节点运行</span></button>
+            <button class="tab" data-tab="events"><i class="ti ti-history"></i><span>事件</span></button>
+          </nav>
+
+          <section id="tab-orchestrator" class="tab-panel active">
+            <div class="orchestrator-panel">
+              <div class="orchestrator-console-header">
+                <div>
+                  <strong>pi-ghost 编排者</strong>
+                  <span id="orchestrator-status">未选择工作区</span>
+                </div>
+                <div class="orchestrator-console-actions">
+                  <div class="mode-switch" role="group" aria-label="编排者模式">
+                    <button id="orchestrator-mode-structured" class="active"><i class="ti ti-layout-dashboard"></i><span>结构化模式</span></button>
+                    <button id="orchestrator-mode-terminal"><i class="ti ti-terminal-2"></i><span>终端模式</span></button>
+                  </div>
+                  <button id="orchestrator-renew"><i class="ti ti-refresh"></i><span>重建编排者</span></button>
+                </div>
+              </div>
+              <div class="orchestrator-body">
+                <div id="orchestrator-structured" class="orchestrator-structured">
+                  <div class="orchestrator-summary">
+                    <span>当前会话</span>
+                    <strong id="orchestrator-workspace">选择工作区</strong>
+                  </div>
+                  <pre id="orchestrator-structured-log" class="orchestrator-structured-log"></pre>
+                  <div class="orchestrator-command">
+                    <textarea id="orchestrator-input" rows="2" placeholder="输入给编排者的需求，按 Cmd+Enter 发送"></textarea>
+                    <button id="orchestrator-send" class="primary"><i class="ti ti-send"></i><span>发送</span></button>
+                  </div>
+                </div>
+                <div id="orchestrator-terminal-wrap" class="orchestrator-terminal-wrap hidden">
+                  <div id="orchestrator-terminal" class="orchestrator-terminal"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="tab-service" class="tab-panel">
+            <pre id="logs"></pre>
+          </section>
+
+          <section id="tab-runs" class="tab-panel">
+            <div id="runs" class="run-list"></div>
+          </section>
+
+          <section id="tab-events" class="tab-panel">
+            <div id="events" class="event-list"></div>
+          </section>
+        </section>
+
+        <section id="server-settings-page" class="settings-page">
+          <div class="settings-header">
+            <div>
+              <h2><i class="ti ti-server-cog"></i>服务设置</h2>
+              <p>这里配置的是 pi-ghost-dag 本地仪表盘/API 服务；服务由内置 Rust server 提供，不是 LLM 或 Pi agent 配置。</p>
+            </div>
+            <button id="close-server-settings"><i class="ti ti-arrow-left"></i><span>返回控制台</span></button>
+          </div>
+
+          <div class="settings-content">
+            <section class="settings-section">
+              <div class="settings-section-title">
+                <h3>启动参数</h3>
+                <span>启动后台服务时使用</span>
+              </div>
+              <div class="settings-form">
+                <label>
+                  <span>端口</span>
+                  <input id="port" type="number" min="1024" max="65535" value="7331">
+                  <small>仪表盘和运行 API 只监听这个端口；端口不可用时会直接失败，不会自动改用下一个端口。</small>
+                </label>
+                <label>
+                  <span>编排者命令</span>
+                  <input id="orchestrator-command" type="text" placeholder="/Users/ghost/.local/bin/pi-ghost">
+                  <small>用于启动每个会话的 pi-ghost 编排者。留空时后端会自动查找 ~/.local/bin/pi-ghost 或 PATH 里的 pi-ghost。</small>
+                </label>
+              </div>
+            </section>
+
+            <section class="settings-section">
+              <div class="settings-section-title">
+                <h3>当前服务</h3>
+                <span>从全局服务目录恢复</span>
+              </div>
+              <div class="settings-kv">
+                <div>
+                  <span>状态</span>
+                  <strong id="settings-service-status">已停止</strong>
+                </div>
+                <div>
+                  <span>PID</span>
+                  <strong id="settings-service-pid">-</strong>
+                </div>
+                <div>
+                  <span>服务地址</span>
+                  <strong id="settings-service-url">-</strong>
+                </div>
+                <div>
+                  <span>日志文件</span>
+                  <strong id="settings-service-log">-</strong>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

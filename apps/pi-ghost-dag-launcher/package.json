@@ -1,0 +1,19 @@
+{
+  "name": "pi-ghost-dag-launcher",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "sync:assets": "node scripts/sync-assets.mjs",
+    "dev": "npm run sync:assets && tauri dev",
+    "build": "npm run sync:assets && tauri build && cargo build --manifest-path src-tauri/Cargo.toml --release --bin pi-ghost-dag-server && node scripts/copy-server-binary.mjs"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.5.0"
+  },
+  "dependencies": {
+    "@tabler/icons-webfont": "^3.44.0",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0"
+  }
+}

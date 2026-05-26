@@ -6,7 +6,9 @@ SOURCE=""
 DEST="${PI_AGENT_CONFIG_DEST:-}"
 AGENT_DIR="${PI_AGENT_DIR:-}"
 LAUNCHER="${PI_AGENT_LAUNCHER:-}"
+DAG_LAUNCHER="${PI_AGENT_DAG_LAUNCHER:-}"
 LAUNCHER_DISABLED="0"
+DAG_LAUNCHER_DISABLED="0"
 PI_CLI_INSTALL_DISABLED="0"
 UPDATE_DISABLED="0"
 FORCE="0"
@@ -18,7 +20,7 @@ RAW_BASE_URL="${PI_AGENT_RAW_BASE_URL:-https://raw.githubusercontent.com/Ghost23
 usage() {
   cat <<'USAGE'
 Usage:
-  install.sh [--profile pi-ghost] [--source path-or-url] [--agent-dir path] [--dest path] [--launcher path] [--no-launcher] [--no-pi-install] [--no-update] [--force] [--config-only] [--dry-run]
+  install.sh [--profile pi-ghost] [--source path-or-url] [--agent-dir path] [--dest path] [--launcher path] [--dag-launcher path] [--no-launcher] [--no-dag-launcher] [--no-pi-install] [--no-update] [--force] [--config-only] [--dry-run]
 
 Defaults:
   profile: pi-ghost
@@ -30,6 +32,7 @@ Environment:
   PI_AGENT_CONFIG_DEST   Override destination config path.
   PI_AGENT_DIR           Override isolated Pi agent directory.
   PI_AGENT_LAUNCHER      Override launcher path.
+  PI_AGENT_DAG_LAUNCHER  Override DAG dashboard launcher path.
   PI_AGENT_CONFIG_ONLY   Set to 1 to skip extension installation.
   PI_AGENT_PI_CLI_PACKAGE Override Pi CLI npm package.
   PI_AGENT_RAW_BASE_URL  Override raw repository base URL.
@@ -59,8 +62,16 @@ while [ "$#" -gt 0 ]; do
       LAUNCHER="${2:?missing value for --launcher}"
       shift 2
       ;;
+    --dag-launcher)
+      DAG_LAUNCHER="${2:?missing value for --dag-launcher}"
+      shift 2
+      ;;
     --no-launcher)
       LAUNCHER_DISABLED="1"
+      shift
+      ;;
+    --no-dag-launcher)
+      DAG_LAUNCHER_DISABLED="1"
       shift
       ;;
     --no-pi-install)
@@ -403,6 +414,18 @@ install_launcher() {
     printf '%s\n' '#!/usr/bin/env bash'
     printf '%s\n' 'set -euo pipefail'
     printf 'export PI_CODING_AGENT_DIR=%q\n' "$agent_dir"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"'
+    printf '%s\n' 'if [ -d "$HOME/.local/state/fnm_multishells" ]; then'
+    printf '%s\n' '  for dir in "$HOME"/.local/state/fnm_multishells/*/bin; do'
+    printf '%s\n' '    [ -x "$dir/pi" ] || continue'
+    printf '%s\n' '    export PATH="$dir:$PATH"'
+    printf '%s\n' '    break'
+    printf '%s\n' '  done'
+    printf '%s\n' 'fi'
+    printf '%s\n' 'if ! command -v pi >/dev/null 2>&1; then'
+    printf '%s\n' '  echo "pi-ghost: pi not found in PATH" >&2'
+    printf '%s\n' '  exit 127'
+    printf '%s\n' 'fi'
     printf '%s\n' 'exec pi "$@"'
   } > "$tmp_launcher"
 
@@ -428,6 +451,58 @@ install_launcher() {
   rm -f "$tmp_launcher"
   chmod 755 "$launcher"
   echo "launcher: $launcher"
+}
+
+install_dag_launcher() {
+  launcher="$1"
+  agent_dir="$2"
+
+  if [ -z "$launcher" ]; then
+    return 0
+  fi
+
+  tmp_launcher="$(mktemp)"
+  {
+    printf '%s\n' '#!/usr/bin/env bash'
+    printf '%s\n' 'set -euo pipefail'
+    printf 'export PI_CODING_AGENT_DIR=%q\n' "$agent_dir"
+    printf '%s\n' 'export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${PATH:-}"'
+    printf '%s\n' 'if [ -d "$HOME/.local/state/fnm_multishells" ]; then'
+    printf '%s\n' '  for dir in "$HOME"/.local/state/fnm_multishells/*/bin; do'
+    printf '%s\n' '    [ -x "$dir/node" ] || continue'
+    printf '%s\n' '    export PATH="$dir:$PATH"'
+    printf '%s\n' '    break'
+    printf '%s\n' '  done'
+    printf '%s\n' 'fi'
+    printf '%s\n' 'if ! command -v node >/dev/null 2>&1; then'
+    printf '%s\n' '  echo "pi-ghost-dag: node not found in PATH" >&2'
+    printf '%s\n' '  exit 127'
+    printf '%s\n' 'fi'
+    printf '%s\n' 'exec node "$PI_CODING_AGENT_DIR/runtimes/pi-ghost-dag/scripts/cli.mjs" "$@"'
+  } > "$tmp_launcher"
+
+  if [ "$DRY_RUN" = "1" ]; then
+    if [ -f "$launcher" ] && cmp -s "$tmp_launcher" "$launcher"; then
+      echo "dry-run: DAG launcher unchanged $launcher"
+    else
+      echo "dry-run: would install DAG launcher $launcher"
+    fi
+    rm -f "$tmp_launcher"
+    return 0
+  fi
+
+  if [ -f "$launcher" ] && cmp -s "$tmp_launcher" "$launcher"; then
+    rm -f "$tmp_launcher"
+    echo "DAG launcher: unchanged $launcher"
+    return 0
+  fi
+
+  launcher_dir="$(dirname "$launcher")"
+  install -d "$launcher_dir"
+  cp "$tmp_launcher" "$launcher"
+  rm -f "$tmp_launcher"
+  chmod 755 "$launcher"
+  echo "DAG launcher: $launcher"
 }
 
 install_profile() {
@@ -721,12 +796,22 @@ if [ -z "$LAUNCHER" ]; then
   LAUNCHER="~/.local/bin/$PROFILE"
 fi
 
+if [ -z "$DAG_LAUNCHER" ]; then
+  DAG_LAUNCHER="$(profile_value local dag_launcher)"
+fi
+
+if [ -z "$DAG_LAUNCHER" ]; then
+  DAG_LAUNCHER="~/.local/bin/$PROFILE-dag"
+fi
+
 LAUNCHER="$(expand_path "$LAUNCHER")"
+DAG_LAUNCHER="$(expand_path "$DAG_LAUNCHER")"
 BACKUP_EXISTING="$(profile_bool install backup_existing true)"
 INSTALL_PI_CLI="$(profile_bool install install_pi_cli true)"
 INSTALL_EXTENSIONS="$(profile_bool install install_extensions true)"
 UPDATE_EXTENSIONS="$(profile_bool install update_extensions true)"
 CREATE_LAUNCHER="$(profile_bool install create_launcher true)"
+CREATE_DAG_LAUNCHER="$(profile_bool install create_dag_launcher true)"
 EXTENSION_SOURCES="$(extension_sources)"
 EXTENSION_REMOVAL_SOURCES="$(extension_removal_sources)"
 PROFILE_FILE_ENTRIES="$(profile_file_entries)"
@@ -735,6 +820,10 @@ PROFILE_HOME_FILE_ENTRIES="$(profile_home_file_entries)"
 
 if [ "$LAUNCHER_DISABLED" = "1" ]; then
   CREATE_LAUNCHER="false"
+fi
+
+if [ "$DAG_LAUNCHER_DISABLED" = "1" ]; then
+  CREATE_DAG_LAUNCHER="false"
 fi
 
 if [ "$PI_CLI_INSTALL_DISABLED" = "1" ]; then
@@ -751,6 +840,9 @@ echo "  agent:  $AGENT_DIR"
 echo "  dest:   $DEST"
 if [ "$CREATE_LAUNCHER" = "true" ]; then
   echo "  launch: $LAUNCHER"
+fi
+if [ "$CREATE_DAG_LAUNCHER" = "true" ]; then
+  echo "  dag:    $DAG_LAUNCHER"
 fi
 
 if { [ -n "$EXTENSION_SOURCES" ] || [ -n "$EXTENSION_REMOVAL_SOURCES" ]; } && [ "$CONFIG_ONLY" != "1" ] && [ "$INSTALL_EXTENSIONS" = "true" ] && [ "$DRY_RUN" = "1" ] && [ "$INSTALL_PI_CLI" = "true" ]; then
@@ -811,6 +903,12 @@ if [ -n "$PROFILE_HOME_FILE_ENTRIES" ]; then
   done <<EOF
 $PROFILE_HOME_FILE_ENTRIES
 EOF
+fi
+
+if [ "$CREATE_DAG_LAUNCHER" = "true" ]; then
+  install_dag_launcher "$DAG_LAUNCHER" "$AGENT_DIR"
+else
+  echo "DAG launcher: skipped"
 fi
 
 if [ -n "$EXTENSION_REMOVAL_SOURCES" ]; then

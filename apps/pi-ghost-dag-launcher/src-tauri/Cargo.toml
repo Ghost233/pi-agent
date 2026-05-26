@@ -1,0 +1,28 @@
+[package]
+name = "pi-ghost-dag-launcher"
+version = "0.1.0"
+description = "Service launcher for the Pi Ghost DAG dashboard"
+edition = "2021"
+default-run = "pi-ghost-dag-launcher"
+
+[[bin]]
+name = "pi-ghost-dag-launcher"
+path = "src/main.rs"
+
+[[bin]]
+name = "pi-ghost-dag-server"
+path = "src/bin/pi-ghost-dag-server.rs"
+
+[build-dependencies]
+tauri-build = { version = "2.2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2.5", features = [] }
+portable-pty = "0.9"
+libc = "0.2"
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

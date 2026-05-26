@@ -5,6 +5,7 @@ profile = "pi-ghost"
 agent_dir = "~/.pi/agent-pi-ghost"
 target_config = "~/.pi/agent-pi-ghost/profile.toml"
 launcher = "~/.local/bin/pi-ghost"
+dag_launcher = "~/.local/bin/pi-ghost-dag"
 
 [install]
 backup_existing = true
@@ -12,10 +13,11 @@ install_pi_cli = true
 install_extensions = true
 update_extensions = true
 create_launcher = true
+create_dag_launcher = true
 
 [[remove_extensions]]
-name = "pi-subagents"
-source = "npm:pi-subagents"
+name = "pi-agent-flow"
+source = "npm:pi-agent-flow"
 
 [[remove_extensions]]
 name = "pi-context-usage"
@@ -30,8 +32,8 @@ name = "pi-context-prune"
 source = "npm:pi-context-prune"
 
 [[extensions]]
-name = "pi-agent-flow"
-source = "npm:pi-agent-flow"
+name = "pi-subagents"
+source = "npm:pi-subagents"
 enabled = true
 
 [[extensions]]
@@ -81,25 +83,39 @@ source = "npm:@pi-unipi/compactor"
 enabled = true
 
 [[files]]
-source = "skills/api-doc-flow/SKILL.md"
-target = "skills/api-doc-flow/SKILL.md"
+source = "runtimes/pi-ghost-dag/README.md"
+target = "runtimes/pi-ghost-dag/README.md"
 
 [[files]]
-source = "skills/api-doc-flow/scripts/task-store.mjs"
-target = "skills/api-doc-flow/scripts/task-store.mjs"
+source = "runtimes/pi-ghost-dag/scripts/store.mjs"
+target = "runtimes/pi-ghost-dag/scripts/store.mjs"
 mode = "0755"
 
 [[files]]
-source = "agents/api-doc-fix-one.md"
-target = "agents/api-doc-fix-one.md"
+source = "runtimes/pi-ghost-dag/scripts/server.mjs"
+target = "runtimes/pi-ghost-dag/scripts/server.mjs"
+mode = "0755"
 
 [[files]]
-source = "agents/api-doc-plan-dag.md"
-target = "agents/api-doc-plan-dag.md"
+source = "runtimes/pi-ghost-dag/scripts/cli.mjs"
+target = "runtimes/pi-ghost-dag/scripts/cli.mjs"
+mode = "0755"
 
 [[files]]
-source = "agents/api-doc-run-next.md"
-target = "agents/api-doc-run-next.md"
+source = "agents/dag-planner.md"
+target = "agents/dag-planner.md"
+
+[[files]]
+source = "agents/dag-runner.md"
+target = "agents/dag-runner.md"
+
+[[files]]
+source = "agents/dag-worker.md"
+target = "agents/dag-worker.md"
+
+[[files]]
+source = "agents/dag-reviewer.md"
+target = "agents/dag-reviewer.md"
 
 [[home_files]]
 source = "configs/unipi/compactor/config.json"
@@ -107,7 +123,28 @@ target = ".unipi/config/compactor/config.json"
 mode = "0644"
 
 [[remove_files]]
+target = "skills/api-doc-flow/SKILL.md"
+
+[[remove_files]]
+target = "skills/api-doc-flow/scripts/task-store.mjs"
+
+[[remove_files]]
 target = "skills/api-doc-flow/scripts/claim-next-task.mjs"
 
 [[remove_files]]
 target = "skills/api-doc-flow/scripts/finish-task.mjs"
+
+[[remove_files]]
+target = "agents/api-doc-fix-one.md"
+
+[[remove_files]]
+target = "agents/api-doc-plan-dag.md"
+
+[[remove_files]]
+target = "agents/api-doc-run-next.md"
+
+[[remove_files]]
+target = "runtimes/pi-ghost-dag/templates/api-doc-fix/planner.md"
+
+[[remove_files]]
+target = "runtimes/pi-ghost-dag/templates/api-doc-fix/worker.md"

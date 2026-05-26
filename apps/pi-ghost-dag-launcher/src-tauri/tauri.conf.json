@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Pi Ghost DAG Launcher",
+  "version": "0.1.0",
+  "identifier": "com.ghost233.pi-ghost-dag-launcher",
+  "mainBinaryName": "pi-ghost-dag-launcher",
+  "build": {
+    "frontendDist": "../src"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "Pi Ghost DAG Launcher",
+        "width": 1040,
+        "height": 760,
+        "minWidth": 760,
+        "minHeight": 560
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../src": "dashboard"
+    }
+  }
+}
