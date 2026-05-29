@@ -122,6 +122,11 @@ source = "configs/unipi/compactor/config.json"
 target = ".unipi/config/compactor/config.json"
 mode = "0644"
 
+[[files]]
+source = "configs/pi-ghost/APPEND_SYSTEM.md"
+target = "APPEND_SYSTEM.md"
+mode = "0644"
+
 [[remove_files]]
 target = "skills/api-doc-flow/SKILL.md"
 

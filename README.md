@@ -109,6 +109,12 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 
+同时会下发 `pi-ghost` 的系统追加提示词：
+
+- 源文件：`configs/pi-ghost/APPEND_SYSTEM.md`
+- 目标文件：`~/.pi/agent-pi-ghost/APPEND_SYSTEM.md`
+- 作用：要求 `pi-ghost` 默认使用简体中文沟通；只影响 `pi-ghost` 隔离环境，不影响普通 `pi`
+
 同时会下发 UniPi compactor 配置：
 
 - 源文件：`configs/unipi/compactor/config.json`
