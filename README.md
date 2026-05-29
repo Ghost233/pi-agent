@@ -90,6 +90,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 当前配置会自动安装 Pi Extension：
 
 - `npm:pi-subagents`
+- `npm:pi-intercom`
 - `npm:pi-rtk-optimizer`
 - `npm:@juicesharp/rpiv-todo`
 - `npm:pi-codex-goal`
@@ -104,8 +105,12 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 
 - Runtime：`pi-ghost-dag`
 - 通用 DAG Agent：`dag-planner` / `dag-runner` / `dag-worker` / `dag-reviewer`
+- Team Leader Skill：`team-leader`
+- Team Agent：`team-scout` / `team-planner` / `team-worker` / `team-reviewer` / `team-oracle` / `team-validator`
 
 `pi-ghost-dag` 作为 Runtime 下发到 `~/.pi/agent-pi-ghost/runtimes/pi-ghost-dag/`。项目里的 `.pi-flow/` 只保存运行数据，例如 `dag.json`、`tasks.ndjson`、`state.json`、`sessions/` 和 `runs/`。
+
+`pi-ghost` 的协作方式是 Team Leader 模式：顶层会话负责和用户沟通、判断是否委派、合并队员结果并做最终决策；子代理只执行自己的 bounded role，遇到 blocker 时通过 `pi-intercom` / `contact_supervisor` 回问 leader，不能自行扩大任务或充当 leader。
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 

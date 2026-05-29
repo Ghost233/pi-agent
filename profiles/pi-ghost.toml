@@ -37,6 +37,11 @@ source = "npm:pi-subagents"
 enabled = true
 
 [[extensions]]
+name = "pi-intercom"
+source = "npm:pi-intercom"
+enabled = true
+
+[[extensions]]
 name = "pi-rtk-optimizer"
 source = "npm:pi-rtk-optimizer"
 enabled = true
@@ -116,6 +121,34 @@ target = "agents/dag-worker.md"
 [[files]]
 source = "agents/dag-reviewer.md"
 target = "agents/dag-reviewer.md"
+
+[[files]]
+source = "agents/team-scout.md"
+target = "agents/team-scout.md"
+
+[[files]]
+source = "agents/team-planner.md"
+target = "agents/team-planner.md"
+
+[[files]]
+source = "agents/team-worker.md"
+target = "agents/team-worker.md"
+
+[[files]]
+source = "agents/team-reviewer.md"
+target = "agents/team-reviewer.md"
+
+[[files]]
+source = "agents/team-oracle.md"
+target = "agents/team-oracle.md"
+
+[[files]]
+source = "agents/team-validator.md"
+target = "agents/team-validator.md"
+
+[[files]]
+source = "skills/team-leader/SKILL.md"
+target = "skills/team-leader/SKILL.md"
 
 [[home_files]]
 source = "configs/unipi/compactor/config.json"
