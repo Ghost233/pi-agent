@@ -1,0 +1,15 @@
+{
+  "name": "pi-team-leader-guard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Runtime guard that forces Team Leader mode to delegate to subagent before local tools.",
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}

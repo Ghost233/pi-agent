@@ -150,6 +150,14 @@ target = "agents/team-validator.md"
 source = "skills/team-leader/SKILL.md"
 target = "skills/team-leader/SKILL.md"
 
+[[files]]
+source = "extensions/team-leader-guard/package.json"
+target = "extensions/team-leader-guard/package.json"
+
+[[files]]
+source = "extensions/team-leader-guard/index.ts"
+target = "extensions/team-leader-guard/index.ts"
+
 [[home_files]]
 source = "configs/unipi/compactor/config.json"
 target = ".unipi/config/compactor/config.json"

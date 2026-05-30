@@ -30,3 +30,11 @@ When you are the top-level Pi session:
   worker/reviewer loop before adding more agents.
 - If `pi-intercom` or `contact_supervisor` is available to child sessions, let
   blocked teammates ask the top-level leader instead of guessing.
+- When the user explicitly asks for team leader mode, team work, delegated
+  investigation, or the `team-leader` skill, apply a hard delegation gate:
+  for any nontrivial bug report, codebase investigation, implementation,
+  review, or validation task, the first tool call must be `subagent`. Do not
+  call local discovery or editing tools such as find, grep, read, bash, edit,
+  write, or index/search helpers before the initial subagent delegation returns.
+  If `subagent` is unavailable, stop and report that delegation is unavailable
+  instead of continuing as a solo agent.
