@@ -97,7 +97,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - `npm:@firstpick/pi-extension-safety-guard`
 - `npm:pi-code-previews`
 - `npm:pi-bar`
-- `npm:@pi-unipi/compactor`
+- `npm:pi-dynamic-workflows`
 
 同时会同步个人 Pi DAG Agent 和本地 DAG Runtime：
 
@@ -114,12 +114,12 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - 目标文件：`~/.pi/agent-pi-ghost/APPEND_SYSTEM.md`
 - 作用：要求 `pi-ghost` 默认使用简体中文沟通；只影响 `pi-ghost` 隔离环境，不影响普通 `pi`
 
-同时会下发 UniPi compactor 配置：
+同时会下发 UniPi compactor 的禁用配置：
 
 - 源文件：`configs/unipi/compactor/config.json`
 - 目标文件：`~/.unipi/config/compactor/config.json`
 - 自动压缩：关闭。长流程通过外部状态、DAG state 和子代理输出续跑，避免自动压缩后中断执行链路。
-- 说明：`@pi-unipi/compactor` 当前读取固定的 `~/.unipi/config/compactor/config.json`，所以安装脚本会把仓库配置同步到这个位置。
+- 说明：`pi-ghost` 不再自动安装 `@pi-unipi/compactor`。这个配置用于已有安装或手动启用 compactor 的场景，确保自动压缩保持关闭。
 
 `pi-ghost-dag` 的固定分层：
 
