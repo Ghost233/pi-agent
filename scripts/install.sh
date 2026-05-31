@@ -776,6 +776,26 @@ NODE
   echo "Removed $package_source with npm fallback"
 }
 
+clean_npm_rename_artifacts() {
+  package_source="$1"
+  node_modules_dir="$AGENT_DIR/npm/node_modules"
+
+  if ! npm_package_name "$package_source" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ ! -d "$node_modules_dir" ]; then
+    return 0
+  fi
+
+  find "$node_modules_dir" -mindepth 1 -maxdepth 1 -type d -name '.*-*' -exec rm -rf {} +
+  for scope_dir in "$node_modules_dir"/@*; do
+    if [ -d "$scope_dir" ]; then
+      find "$scope_dir" -mindepth 1 -maxdepth 1 -type d -name '.*-*' -exec rm -rf {} +
+    fi
+  done
+}
+
 remove_extension() {
   extension_source="$1"
 
@@ -795,6 +815,26 @@ remove_extension() {
       ;;
     *)
       echo "Error: pi remove failed for $extension_source" >&2
+      return 1
+      ;;
+  esac
+}
+
+install_extension() {
+  extension_source="$1"
+
+  if PI_CODING_AGENT_DIR="$AGENT_DIR" pi install "$extension_source"; then
+    return 0
+  fi
+
+  case "$extension_source" in
+    npm:*)
+      echo "warning: pi install failed for $extension_source; cleaning npm rename artifacts and retrying" >&2
+      clean_npm_rename_artifacts "$extension_source"
+      install_extension "$extension_source"
+      ;;
+    *)
+      echo "Error: pi install failed for $extension_source" >&2
       return 1
       ;;
   esac
@@ -1077,7 +1117,7 @@ EOF
         continue
       fi
 
-      PI_CODING_AGENT_DIR="$AGENT_DIR" pi install "$extension_source"
+      install_extension "$extension_source"
     done <<EOF
 $EXTENSION_SOURCES
 EOF
