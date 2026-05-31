@@ -89,8 +89,6 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 
 当前配置会自动安装 Pi Extension：
 
-- `npm:pi-subagents`
-- `npm:pi-intercom`
 - `npm:pi-rtk-optimizer`
 - `npm:@juicesharp/rpiv-todo`
 - `npm:pi-codex-goal`
@@ -101,22 +99,12 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - `npm:pi-bar`
 - `npm:@pi-unipi/compactor`
 
-同时会同步本地自动发现 Extension：
-
-- `extensions/team-leader-guard`：当 `team-leader` skill 处理非平凡任务时，运行时强制首个工具调用必须是 `subagent`；首个 `subagent` 成功返回前会阻止本地搜索、读取、编辑、shell、todo、验证等其他工具。
-
 同时会同步个人 Pi DAG Agent 和本地 DAG Runtime：
 
 - Runtime：`pi-ghost-dag`
 - 通用 DAG Agent：`dag-planner` / `dag-runner` / `dag-worker` / `dag-reviewer`
-- Team Leader Skill：`team-leader`
-- Team Agent：`team-scout` / `team-planner` / `team-worker` / `team-reviewer` / `team-oracle` / `team-validator`
 
 `pi-ghost-dag` 作为 Runtime 下发到 `~/.pi/agent-pi-ghost/runtimes/pi-ghost-dag/`。项目里的 `.pi-flow/` 只保存运行数据，例如 `dag.json`、`tasks.ndjson`、`state.json`、`sessions/` 和 `runs/`。
-
-`pi-ghost` 的协作方式是 Team Leader 模式：顶层会话负责和用户沟通、判断是否委派、合并队员结果并做最终决策；子代理只执行自己的 bounded role，遇到 blocker 时通过 `pi-intercom` / `contact_supervisor` 回问 leader，不能自行扩大任务或充当 leader。
-
-当 `team-leader` skill 被触发并且任务不是简单问答时，`team-leader-guard` 会在 Pi 的 extension hook 层面生效：如果 leader 先调用 `find`、`grep`、`read`、`bash`、`edit`、`write` 或任何非 `subagent` 工具，这次工具调用会被直接 block。只有首个 `subagent` 成功返回后，leader 才能继续自己读代码、修改或验证。
 
 这个仓库只管理 Pi 自己的配置，不写入其他工具的全局配置。
 
@@ -130,7 +118,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 
 - 源文件：`configs/unipi/compactor/config.json`
 - 目标文件：`~/.unipi/config/compactor/config.json`
-- 自动压缩阈值：上下文占用达到 75%
+- 自动压缩：关闭。长流程通过外部状态、DAG state 和子代理输出续跑，避免自动压缩后中断执行链路。
 - 说明：`@pi-unipi/compactor` 当前读取固定的 `~/.unipi/config/compactor/config.json`，所以安装脚本会把仓库配置同步到这个位置。
 
 `pi-ghost-dag` 的固定分层：

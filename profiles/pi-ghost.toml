@@ -31,15 +31,13 @@ source = "npm:@narumitw/pi-statusline"
 name = "pi-context-prune"
 source = "npm:pi-context-prune"
 
-[[extensions]]
+[[remove_extensions]]
 name = "pi-subagents"
 source = "npm:pi-subagents"
-enabled = true
 
-[[extensions]]
+[[remove_extensions]]
 name = "pi-intercom"
 source = "npm:pi-intercom"
-enabled = true
 
 [[extensions]]
 name = "pi-rtk-optimizer"
@@ -122,42 +120,6 @@ target = "agents/dag-worker.md"
 source = "agents/dag-reviewer.md"
 target = "agents/dag-reviewer.md"
 
-[[files]]
-source = "agents/team-scout.md"
-target = "agents/team-scout.md"
-
-[[files]]
-source = "agents/team-planner.md"
-target = "agents/team-planner.md"
-
-[[files]]
-source = "agents/team-worker.md"
-target = "agents/team-worker.md"
-
-[[files]]
-source = "agents/team-reviewer.md"
-target = "agents/team-reviewer.md"
-
-[[files]]
-source = "agents/team-oracle.md"
-target = "agents/team-oracle.md"
-
-[[files]]
-source = "agents/team-validator.md"
-target = "agents/team-validator.md"
-
-[[files]]
-source = "skills/team-leader/SKILL.md"
-target = "skills/team-leader/SKILL.md"
-
-[[files]]
-source = "extensions/team-leader-guard/package.json"
-target = "extensions/team-leader-guard/package.json"
-
-[[files]]
-source = "extensions/team-leader-guard/index.ts"
-target = "extensions/team-leader-guard/index.ts"
-
 [[home_files]]
 source = "configs/unipi/compactor/config.json"
 target = ".unipi/config/compactor/config.json"
@@ -179,6 +141,36 @@ target = "skills/api-doc-flow/scripts/claim-next-task.mjs"
 
 [[remove_files]]
 target = "skills/api-doc-flow/scripts/finish-task.mjs"
+
+[[remove_files]]
+target = "skills/pi-subagents/SKILL.md"
+
+[[remove_files]]
+target = "skills/team-leader/SKILL.md"
+
+[[remove_files]]
+target = "extensions/team-leader-guard/package.json"
+
+[[remove_files]]
+target = "extensions/team-leader-guard/index.ts"
+
+[[remove_files]]
+target = "agents/team-scout.md"
+
+[[remove_files]]
+target = "agents/team-planner.md"
+
+[[remove_files]]
+target = "agents/team-worker.md"
+
+[[remove_files]]
+target = "agents/team-reviewer.md"
+
+[[remove_files]]
+target = "agents/team-oracle.md"
+
+[[remove_files]]
+target = "agents/team-validator.md"
 
 [[remove_files]]
 target = "agents/api-doc-fix-one.md"
