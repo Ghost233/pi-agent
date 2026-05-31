@@ -92,6 +92,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - `npm:pi-rtk-optimizer`
 - `npm:@juicesharp/rpiv-todo`
 - `npm:pi-codex-goal`
+- `npm:pi-context-usage`
 - `npm:@juicesharp/rpiv-ask-user-question`
 - `npm:@juicesharp/rpiv-btw`
 - `npm:@firstpick/pi-extension-safety-guard`
