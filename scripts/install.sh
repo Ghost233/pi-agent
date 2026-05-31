@@ -700,6 +700,106 @@ package_installed() {
   grep -Fq "\"source\": \"$package_source\"" "$settings_file"
 }
 
+npm_package_name() {
+  package_source="$1"
+
+  case "$package_source" in
+    npm:*)
+      printf '%s\n' "${package_source#npm:}"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+remove_npm_extension_fallback() {
+  package_source="$1"
+  package_name="$(npm_package_name "$package_source")"
+  npm_dir="$AGENT_DIR/npm"
+  node_modules_dir="$npm_dir/node_modules/$package_name"
+
+  if [ -z "$package_name" ]; then
+    echo "Error: invalid npm package source: $package_source" >&2
+    return 1
+  fi
+
+  if ! command -v node >/dev/null 2>&1; then
+    echo "Error: node is required for fallback removal of $package_source" >&2
+    return 1
+  fi
+
+  node - "$AGENT_DIR/settings.json" "$npm_dir/package.json" "$npm_dir/package-lock.json" "$package_source" "$package_name" <<'NODE'
+const fs = require("node:fs");
+const [settingsPath, packagePath, lockPath, packageSource, packageName] = process.argv.slice(2);
+
+function readJson(path) {
+  if (!fs.existsSync(path)) return null;
+  return JSON.parse(fs.readFileSync(path, "utf8"));
+}
+
+function writeJson(path, value) {
+  fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+const settings = readJson(settingsPath);
+if (settings && Array.isArray(settings.packages)) {
+  settings.packages = settings.packages.filter((item) => {
+    if (typeof item === "string") return item !== packageSource;
+    if (!item || typeof item !== "object") return true;
+    return item.source !== packageSource && item.name !== packageName && item.package !== packageName;
+  });
+  writeJson(settingsPath, settings);
+}
+
+const pkg = readJson(packagePath);
+if (pkg) {
+  for (const field of ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]) {
+    if (pkg[field]) delete pkg[field][packageName];
+  }
+  writeJson(packagePath, pkg);
+}
+
+const lock = readJson(lockPath);
+if (lock) {
+  if (lock.packages?.[""]?.dependencies) delete lock.packages[""].dependencies[packageName];
+  if (lock.packages) delete lock.packages[`node_modules/${packageName}`];
+  if (lock.dependencies) delete lock.dependencies[packageName];
+  writeJson(lockPath, lock);
+}
+NODE
+
+  if [ -d "$node_modules_dir" ]; then
+    rm -rf "$node_modules_dir"
+  fi
+
+  echo "Removed $package_source with npm fallback"
+}
+
+remove_extension() {
+  extension_source="$1"
+
+  if ! package_installed "$extension_source"; then
+    echo "extension: already absent $extension_source"
+    return 0
+  fi
+
+  if PI_CODING_AGENT_DIR="$AGENT_DIR" pi remove "$extension_source"; then
+    return 0
+  fi
+
+  case "$extension_source" in
+    npm:*)
+      echo "warning: pi remove failed for $extension_source; attempting npm fallback" >&2
+      remove_npm_extension_fallback "$extension_source"
+      ;;
+    *)
+      echo "Error: pi remove failed for $extension_source" >&2
+      return 1
+      ;;
+  esac
+}
+
 backup_file() {
   file="$1"
   if [ ! -e "$file" ]; then
@@ -934,11 +1034,7 @@ EOF
         continue
       fi
 
-      if package_installed "$extension_source"; then
-        PI_CODING_AGENT_DIR="$AGENT_DIR" pi remove "$extension_source"
-      else
-        echo "extension: already absent $extension_source"
-      fi
+      remove_extension "$extension_source"
     done <<EOF
 $EXTENSION_REMOVAL_SOURCES
 EOF
