@@ -39,6 +39,10 @@ source = "npm:pi-intercom"
 name = "unipi-compactor"
 source = "npm:@pi-unipi/compactor"
 
+[[remove_extensions]]
+name = "pi-dynamic-workflows"
+source = "npm:pi-dynamic-workflows"
+
 [[extensions]]
 name = "pi-rtk-optimizer"
 source = "npm:pi-rtk-optimizer"
@@ -87,7 +91,7 @@ enabled = true
 
 [[extensions]]
 name = "pi-dynamic-workflows"
-source = "npm:pi-dynamic-workflows"
+source = "npm:@quintinshaw/pi-dynamic-workflows"
 enabled = true
 
 [[files]]

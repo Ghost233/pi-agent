@@ -98,7 +98,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - `npm:@firstpick/pi-extension-safety-guard`
 - `npm:pi-code-previews`
 - `npm:pi-bar`
-- `npm:pi-dynamic-workflows`
+- `npm:@quintinshaw/pi-dynamic-workflows`
 
 同时会同步个人 Pi DAG Agent 和本地 DAG Runtime：
 
