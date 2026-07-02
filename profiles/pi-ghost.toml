@@ -55,6 +55,11 @@ source = "npm:@tintinweb/pi-subagents"
 enabled = true
 
 [[extensions]]
+name = "agent-comms"
+source = "npm:agent-comms"
+enabled = true
+
+[[extensions]]
 name = "pi-mcp-adapter"
 source = "npm:pi-mcp-adapter"
 enabled = true

@@ -91,6 +91,7 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 
 - `npm:pi-rtk-optimizer`
 - `npm:@tintinweb/pi-subagents`
+- `npm:agent-comms`
 - `npm:pi-mcp-adapter`
 - `npm:@juicesharp/rpiv-todo`
 - `npm:pi-goal`
@@ -101,6 +102,8 @@ Tauri 启动器默认会从 app 包内启动 `Contents/Resources/bin/pi-ghost-da
 - `npm:@firstpick/pi-extension-safety-guard`
 - `npm:pi-code-previews`
 - `npm:pi-bar`
+
+`agent-comms` 的引入原因、使用方式和边界见 [agent-comms 多 Pi 协作设计](docs/agent-comms-team-design.md)。
 
 同时会同步个人 Pi DAG Agent 和本地 DAG Runtime：
 
