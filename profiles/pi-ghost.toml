@@ -24,14 +24,6 @@ name = "pi-statusline"
 source = "npm:@narumitw/pi-statusline"
 
 [[remove_extensions]]
-name = "pi-context-prune"
-source = "npm:pi-context-prune"
-
-[[remove_extensions]]
-name = "pi-subagents"
-source = "npm:pi-subagents"
-
-[[remove_extensions]]
 name = "pi-intercom"
 source = "npm:pi-intercom"
 
@@ -43,6 +35,14 @@ source = "npm:@pi-unipi/compactor"
 name = "pi-dynamic-workflows"
 source = "npm:pi-dynamic-workflows"
 
+[[remove_extensions]]
+name = "pi-dynamic-workflows-quintin"
+source = "npm:@quintinshaw/pi-dynamic-workflows"
+
+[[remove_extensions]]
+name = "pi-codex-goal"
+source = "npm:pi-codex-goal"
+
 [[extensions]]
 name = "pi-rtk-optimizer"
 source = "npm:pi-rtk-optimizer"
@@ -50,13 +50,28 @@ enabled = true
 requires_binary = "rtk"
 
 [[extensions]]
+name = "pi-subagents"
+source = "npm:@tintinweb/pi-subagents"
+enabled = true
+
+[[extensions]]
+name = "pi-mcp-adapter"
+source = "npm:pi-mcp-adapter"
+enabled = true
+
+[[extensions]]
 name = "rpiv-todo"
 source = "npm:@juicesharp/rpiv-todo"
 enabled = true
 
 [[extensions]]
-name = "pi-codex-goal"
-source = "npm:pi-codex-goal"
+name = "pi-goal"
+source = "npm:pi-goal"
+enabled = true
+
+[[extensions]]
+name = "pi-context-prune"
+source = "npm:pi-context-prune"
 enabled = true
 
 [[extensions]]
@@ -87,11 +102,6 @@ enabled = true
 [[extensions]]
 name = "pi-bar"
 source = "npm:pi-bar"
-enabled = true
-
-[[extensions]]
-name = "pi-dynamic-workflows"
-source = "npm:@quintinshaw/pi-dynamic-workflows"
 enabled = true
 
 [[files]]
