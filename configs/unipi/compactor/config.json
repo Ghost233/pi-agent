@@ -67,8 +67,8 @@
     "customNoisePatterns": []
   },
   "autoCompaction": {
-    "enabled": false,
-    "thresholdPercent": 75,
+    "enabled": true,
+    "thresholdPercent": 50,
     "cooldownMs": 60000,
     "repeatMinGrowthTokens": 4000,
     "notify": true

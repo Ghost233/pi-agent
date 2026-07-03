@@ -28,10 +28,6 @@ name = "pi-intercom"
 source = "npm:pi-intercom"
 
 [[remove_extensions]]
-name = "unipi-compactor"
-source = "npm:@pi-unipi/compactor"
-
-[[remove_extensions]]
 name = "pi-dynamic-workflows"
 source = "npm:pi-dynamic-workflows"
 
@@ -82,6 +78,11 @@ enabled = true
 [[extensions]]
 name = "pi-context-usage"
 source = "npm:pi-context-usage"
+enabled = true
+
+[[extensions]]
+name = "unipi-compactor"
+source = "npm:@pi-unipi/compactor"
 enabled = true
 
 [[extensions]]
